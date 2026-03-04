@@ -1,0 +1,205 @@
+:root {
+    --brand: #7a1010;
+    --brand-dark: #520707;
+    --surface: #f6f8fb;
+    --panel: #ffffff;
+    --text: #1f2937;
+    --muted: #6b7280;
+    --line: #d9dee8;
+    --shadow: 0 12px 30px rgba(16, 24, 40, 0.12);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Noto Sans Thai", sans-serif;
+    color: var(--text);
+    background: radial-gradient(circle at top right, #fbe3e3 0%, #f4f6fb 45%, #eef1f7 100%);
+    min-height: 100dvh;
+}
+
+.top-header {
+    background: linear-gradient(110deg, var(--brand-dark), var(--brand));
+    color: #fff;
+    padding: 12px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    box-shadow: var(--shadow);
+}
+
+.brand-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo-link {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+}
+
+.logo {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+}
+
+.brand-wrap h1 {
+    margin: 0;
+    font-size: 1.03rem;
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+.brand-wrap p {
+    margin: 2px 0 0;
+    font-size: 0.72rem;
+    opacity: 0.85;
+    line-height: 1.1;
+}
+
+.year-badge {
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.container {
+    width: min(1220px, 100%);
+    margin: 14px auto;
+    padding: 0 12px 16px;
+}
+
+.menu-panel {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(4px);
+    border: 1px solid #ebeff6;
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    padding: 14px;
+}
+
+.panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.panel-head h2 {
+    margin: 0;
+    color: #7f1d1d;
+    font-size: 1.03rem;
+    font-weight: 700;
+}
+
+.panel-head p {
+    margin: 2px 0 0;
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+
+.back-link {
+    text-decoration: none;
+    color: #7f1d1d;
+    border: 1px solid #f4b4b4;
+    background: #fff3f3;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.back-link:hover {
+    background: #ffe7e7;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+.menu-item {
+    text-decoration: none;
+    color: inherit;
+}
+
+.menu-card {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: linear-gradient(180deg, #fff, #fdfefe);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    padding: 12px 10px;
+    text-align: center;
+    height: 100%;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.menu-item:hover .menu-card {
+    transform: translateY(-2px);
+    border-color: #f1b8b8;
+    box-shadow: 0 14px 22px rgba(127, 29, 29, 0.14);
+}
+
+.icon-wrap {
+    width: 72px;
+    height: 72px;
+    border-radius: 14px;
+    background: linear-gradient(140deg, #fef2f2, #fff);
+    border: 1px solid #fde2e2;
+    margin: 0 auto 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+}
+
+.icon-wrap img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.menu-title {
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: #334155;
+    line-height: 1.25;
+    min-height: 2.4em;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+@media (max-width: 760px) {
+    .top-header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 10px 12px;
+    }
+
+    .brand-wrap p {
+        display: none;
+    }
+
+    .panel-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .grid {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+    }
+}

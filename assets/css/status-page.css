@@ -1,0 +1,64 @@
+.status-note {
+    margin-top: 4px;
+    white-space: normal;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #9f1239;
+}
+
+.popup-table td {
+    vertical-align: middle;
+}
+
+.popup-head-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+.popup-head-row .popup-title {
+    margin: 0;
+}
+
+.popup-head-row .edit-btn {
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+.popup-table {
+    table-layout: fixed;
+}
+
+.popup-table th:nth-child(1),
+.popup-table td:nth-child(1) {
+    width: 58px;
+}
+
+.popup-table th:nth-child(6),
+.popup-table th:nth-child(7),
+.popup-table th:nth-child(8),
+.popup-table td:nth-child(6),
+.popup-table td:nth-child(7),
+.popup-table td:nth-child(8) {
+    width: 88px;
+    text-align: center;
+}
+
+.popup-table td:nth-child(9) {
+    min-width: 250px;
+    text-align: left;
+}
+
+.note-select,
+.note-input {
+    font-size: 0.82rem;
+}
+
+@media (max-width: 900px) {
+    .popup-table td:nth-child(9) {
+        min-width: 190px;
+    }
+}
