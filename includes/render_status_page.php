@@ -75,6 +75,7 @@ function renderStatusPage(array $config): void
 
     $noteOptions = array_values(array_filter(array_map('strval', $config['note_options'] ?? [])));
     $requiredNoteStatuses = array_values(array_filter(array_map('strval', $config['required_note_statuses'] ?? ['F'])));
+    $editableNoteStatuses = array_values(array_filter(array_map('strval', $config['editable_note_statuses'] ?? $requiredNoteStatuses)));
     $showNoteStatuses = array_values(array_filter(array_map('strval', $config['show_note_statuses'] ?? ['F'])));
 
     $examYear = (string) $_SESSION['exam_year'];
@@ -430,6 +431,7 @@ function renderStatusPage(array $config): void
 
         const failReasons = <?= json_encode($noteOptions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
         const requiredNoteStatuses = <?= json_encode($requiredNoteStatuses, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+        const editableNoteStatuses = <?= json_encode($editableNoteStatuses, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
         const updateEndpoint = <?= json_encode((string) $config['update_endpoint']) ?>;
 
         checkAll.addEventListener('change', function() {
@@ -463,7 +465,7 @@ function renderStatusPage(array $config): void
 
             const select = document.createElement('select');
             select.className = 'note-select form-select form-select-sm';
-            select.disabled = !requiredNoteStatuses.includes(status);
+            select.disabled = !editableNoteStatuses.includes(status);
 
             const defaultOption = document.createElement('option');
             defaultOption.value = '';
@@ -557,7 +559,7 @@ function renderStatusPage(array $config): void
                 return;
             }
 
-            if (requiredNoteStatuses.includes('P')) {
+            if (editableNoteStatuses.includes('P')) {
                 select.disabled = false;
                 return;
             }
@@ -622,7 +624,7 @@ function renderStatusPage(array $config): void
                 const select = row.querySelector('.note-select');
                 const input = row.querySelector('.note-input');
 
-                if (requiredNoteStatuses.includes(status)) {
+                if (editableNoteStatuses.includes(status)) {
                     select.disabled = false;
                     return;
                 }
@@ -661,9 +663,9 @@ function renderStatusPage(array $config): void
                 const input = row.querySelector('.note-input');
 
                 let note = '';
-                if (requiredNoteStatuses.includes(selectedStatus)) {
+                if (editableNoteStatuses.includes(selectedStatus)) {
                     note = select.value === 'OTHER' ? input.value.trim() : select.value;
-                    if (!note) {
+                    if (requiredNoteStatuses.includes(selectedStatus) && !note) {
                         throw new Error('กรุณาเลือกหรือกรอกหมายเหตุให้ครบถ้วน');
                     }
                 }
