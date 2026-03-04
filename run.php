@@ -7,7 +7,7 @@ renderStatusPage([
     'status_column' => 'run_test',
     'note_column' => 'run_test_note',
     'update_endpoint' => './update/update_run.php',
-    'note_options' => ['ขาดสอบ', 'ตกวิ่ง', 'ทุจริต'],
+    'note_options' => ['ไม่มาสอบวิ่ง', 'ตกวิ่ง', 'ทุจริต'],
     'required_note_statuses' => ['F'],
     'show_note_statuses' => ['F'],
 ]);
