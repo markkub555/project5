@@ -2,7 +2,13 @@
 
 declare(strict_types=1);
 
-function handleStatusUpdate(PDO $conn, string $statusColumn, string $noteColumn, array $requiredNoteStatuses = ['F']): void
+function handleStatusUpdate(
+    PDO $conn,
+    string $statusColumn,
+    string $noteColumn,
+    array $requiredNoteStatuses = ['F'],
+    ?array $editableNoteStatuses = null
+): void
 {
     header('Content-Type: application/json; charset=UTF-8');
 
@@ -21,6 +27,9 @@ function handleStatusUpdate(PDO $conn, string $statusColumn, string $noteColumn,
 
     $allowedStatus = ['W', 'P', 'F'];
     $required = array_values(array_filter(array_map('strval', $requiredNoteStatuses)));
+    $editable = $editableNoteStatuses === null
+        ? $required
+        : array_values(array_filter(array_map('strval', $editableNoteStatuses)));
     $stageOrder = [
         'submit_doc',
         'lab_check',
@@ -127,9 +136,9 @@ function handleStatusUpdate(PDO $conn, string $statusColumn, string $noteColumn,
             }
 
             $note = '';
-            if (in_array($status, $required, true)) {
+            if (in_array($status, $editable, true)) {
                 $note = $normalize($row['note'], 255);
-                if ($note === '') {
+                if (in_array($status, $required, true) && $note === '') {
                     continue;
                 }
             }
