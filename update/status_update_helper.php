@@ -50,6 +50,29 @@ function handleStatusUpdate(PDO $conn, string $statusColumn, string $noteColumn,
     };
 
     try {
+        $candidates = [];
+        foreach ($payload as $row) {
+            $id = (int) ($row['id'] ?? 0);
+            $status = strtoupper(trim((string) ($row['status'] ?? '')));
+            if ($id <= 0 || !in_array($status, $allowedStatus, true)) {
+                continue;
+            }
+
+            $candidates[] = [
+                'id' => $id,
+                'status' => $status,
+                'note' => $row['note'] ?? '',
+            ];
+        }
+
+        if ($candidates === []) {
+            echo json_encode([
+                'success' => true,
+                'updated' => 0,
+            ]);
+            return;
+        }
+
         $conn->beginTransaction();
 
         $stmt = $conn->prepare(
@@ -58,20 +81,29 @@ function handleStatusUpdate(PDO $conn, string $statusColumn, string $noteColumn,
                  $noteColumn = :note
              WHERE id = :id"
         );
-        $guardSql = 'SELECT ' . implode(', ', $stageOrder) . ' FROM applicantname WHERE id = :id LIMIT 1';
+        $candidateIds = array_values(array_unique(array_column($candidates, 'id')));
+        $guardPlaceholders = implode(',', array_fill(0, count($candidateIds), '?'));
+        $guardSql = 'SELECT id, ' . implode(', ', $stageOrder) . " FROM applicantname WHERE id IN ($guardPlaceholders)";
         $stageGuardStmt = $conn->prepare($guardSql);
+        foreach ($candidateIds as $idx => $candidateId) {
+            $stageGuardStmt->bindValue($idx + 1, $candidateId, PDO::PARAM_INT);
+        }
+        $stageGuardStmt->execute();
+        $guardRows = $stageGuardStmt->fetchAll(PDO::FETCH_ASSOC);
+        $guardById = [];
+        foreach ($guardRows as $guardRow) {
+            $guardById[(int) ($guardRow['id'] ?? 0)] = $guardRow;
+        }
 
         $updated = 0;
 
-        foreach ($payload as $row) {
-            $id = (int) ($row['id'] ?? 0);
-            $status = strtoupper(trim((string) ($row['status'] ?? '')));
-            if ($id <= 0 || !in_array($status, $allowedStatus, true)) {
+        foreach ($candidates as $row) {
+            $id = (int) $row['id'];
+            $status = (string) $row['status'];
+            $guardRow = $guardById[$id] ?? [];
+            if ($guardRow === []) {
                 continue;
             }
-            $stageGuardStmt->bindValue(':id', $id, PDO::PARAM_INT);
-            $stageGuardStmt->execute();
-            $guardRow = $stageGuardStmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
             $eligibleForCurrentStage = false;
 
@@ -96,7 +128,7 @@ function handleStatusUpdate(PDO $conn, string $statusColumn, string $noteColumn,
 
             $note = '';
             if (in_array($status, $required, true)) {
-                $note = $normalize($row['note'] ?? '', 255);
+                $note = $normalize($row['note'], 255);
                 if ($note === '') {
                     continue;
                 }
