@@ -118,7 +118,13 @@ if ($page > $totalPages) {
 $dataSql = "
     SELECT id, idcode, prefix, firstname, lastname,
            submit_doc, lab_check, swim_test, run_test, station3_test,
-           hospital_check, fingerprint_check, background_check, interview, militarydoc
+           hospital_check, fingerprint_check, background_check, interview, militarydoc,
+           (
+               SELECT COUNT(*)
+               FROM applicantname a2
+               WHERE a2.exam_year = applicantname.exam_year
+                 AND CAST(a2.id AS UNSIGNED) <= CAST(applicantname.id AS UNSIGNED)
+           ) AS global_order_no
     FROM applicantname
     WHERE $whereSql
     ORDER BY CAST(id AS UNSIGNED) ASC
@@ -295,7 +301,7 @@ $columns = [
                         <?php endif; ?>
                         <?php foreach ($rows as $index => $row): ?>
                             <tr>
-                                <td><?= $offset + $index + 1 ?></td>
+                                <td><?= (int) ($row['global_order_no'] ?? ($offset + $index + 1)) ?></td>
                                 <td><?= $h((string) $row['idcode']) ?></td>
                                 <td><?= $h(trim(($row['prefix'] ?? '') . ($row['firstname'] ?? '') . ' ' . ($row['lastname'] ?? ''))) ?></td>
                                 <?php foreach (array_keys($columns) as $field): ?>

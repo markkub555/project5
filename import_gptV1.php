@@ -293,7 +293,7 @@ $years = $yearStmt->fetchAll(PDO::FETCH_COLUMN);
             <form action="import_applicant.php" method="post" enctype="multipart/form-data">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label class="label" for="exam_year">รุ่นนสต.ปีที่สอบ</label>
+                        <label class="label" for="exam_year">นสต.รุ่นที่</label>
                         <input id="exam_year" class="input" type="number" name="exam_year" placeholder="เช่น 17" required>
                     </div>
 
