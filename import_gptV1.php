@@ -4,6 +4,19 @@ require_once 'config/db.php';
 
 $yearStmt = $conn->query("\n    SELECT DISTINCT exam_year\n    FROM applicantname\n    WHERE exam_year IS NOT NULL\n    ORDER BY exam_year DESC\n");
 $years = $yearStmt->fetchAll(PDO::FETCH_COLUMN);
+
+$formatYearLabel = static function ($year): string {
+    $raw = trim((string) $year);
+    if ($raw === '') {
+        return '';
+    }
+
+    if (mb_strpos($raw, 'นสต.') === 0) {
+        return $raw;
+    }
+
+    return 'นสต.' . $raw;
+};
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -320,7 +333,7 @@ $years = $yearStmt->fetchAll(PDO::FETCH_COLUMN);
                 <div class="year-grid">
                     <?php foreach ($years as $year): ?>
                         <button type="button" class="year-btn" onclick="goToYear('<?= htmlspecialchars((string) $year, ENT_QUOTES, 'UTF-8') ?>')">
-                            <?= htmlspecialchars((string) $year, ENT_QUOTES, 'UTF-8') ?>
+                            <?= htmlspecialchars($formatYearLabel($year), ENT_QUOTES, 'UTF-8') ?>
                         </button>
                     <?php endforeach; ?>
                 </div>

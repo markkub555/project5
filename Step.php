@@ -300,13 +300,26 @@ $columns = [
                             </tr>
                         <?php endif; ?>
                         <?php foreach ($rows as $index => $row): ?>
+                            <?php
+                            $columnKeys = array_keys($columns);
+                            $hasFail = false;
+                            foreach ($columnKeys as $field) {
+                                if (($row[$field] ?? 'W') === 'F') {
+                                    $hasFail = true;
+                                    break;
+                                }
+                            }
+                            ?>
                             <tr>
                                 <td><?= (int) ($row['global_order_no'] ?? ($offset + $index + 1)) ?></td>
                                 <td><?= $h((string) $row['idcode']) ?></td>
                                 <td><?= $h(trim(($row['prefix'] ?? '') . ($row['firstname'] ?? '') . ' ' . ($row['lastname'] ?? ''))) ?></td>
-                                <?php foreach (array_keys($columns) as $field): ?>
-                                    <?php $status = in_array(($row[$field] ?? 'W'), ['W', 'P', 'F'], true) ? $row[$field] : 'W'; ?>
-                                    <td class="step-status-<?= $h($status) ?>"><?= $h($statusText[$status]) ?></td>
+                                <?php foreach ($columnKeys as $field): ?>
+                                    <?php
+                                    $status = in_array(($row[$field] ?? 'W'), ['W', 'P', 'F'], true) ? $row[$field] : 'W';
+                                    $isPendingForFailedRow = $status === 'W' && $hasFail;
+                                    ?>
+                                    <td class="step-status-<?= $h($status) ?>"><?= $isPendingForFailedRow ? '-' : $h($statusText[$status]) ?></td>
                                 <?php endforeach; ?>
                             </tr>
                         <?php endforeach; ?>

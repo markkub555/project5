@@ -231,7 +231,7 @@ function renderStatusPage(array $config): void
         <div class="header-right">
             <div class="header-meta">
                 <strong><?= $h((string) $config['page_title']) ?></strong>
-                <span>ปีที่ใช้งาน: <?= $h($examYear) ?></span>
+                <span>นสต.รุ่นที่: <?= $h($examYear) ?></span>
             </div>
             <div class="profile-menu">
                 <button id="profileTrigger" type="button" class="profile-trigger">
