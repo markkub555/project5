@@ -193,9 +193,12 @@ if ($endPage - $startPage + 1 < $range) {
             </div>
         </div>
         <div class="header-right">
+            <a class="header-home" href="menu.php" aria-label="กลับหน้าเมนูหลัก" style="color:#fff;">
+                <i class="bi bi-house-door-fill" style="color:#fff;"></i>
+            </a>
             <div class="header-meta">
                 <strong>รายชื่อทั้งหมด</strong>
-                <span>ปีที่ใช้งาน: <?= h($examYear) ?></span>
+                <span>นสต.รุ่นที่: <?= h($examYear) ?></span>
             </div>
             <div class="profile-menu">
                 <button id="profileTrigger" type="button" class="profile-trigger">

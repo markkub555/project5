@@ -229,10 +229,14 @@ function renderStatusPage(array $config): void
             </div>
         </div>
         <div class="header-right">
+            <a class="header-home" href="menu.php" aria-label="กลับหน้าเมนูหลัก" style="color:#fff;">
+                <i class="bi bi-house-door-fill" style="color:#fff;"></i>
+            </a>
             <div class="header-meta">
                 <strong><?= $h((string) $config['page_title']) ?></strong>
                 <span>นสต.รุ่นที่: <?= $h($examYear) ?></span>
             </div>
+           
             <div class="profile-menu">
                 <button id="profileTrigger" type="button" class="profile-trigger">
                     <i class="bi bi-person-circle"></i>

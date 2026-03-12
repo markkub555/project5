@@ -218,6 +218,9 @@ $columns = [
             </div>
         </div>
         <div class="header-right">
+            <a class="header-home" href="menu.php" aria-label="กลับหน้าเมนูหลัก" style="color:#fff;">
+                <i class="bi bi-house-door-fill" style="color:#fff;"></i>
+            </a>
             <div class="header-meta">
                 <strong>สรุปผลรายขั้นตอน</strong>
                 <span>ปีที่ใช้งาน: <?= $h($examYear) ?></span>
@@ -302,10 +305,11 @@ $columns = [
                         <?php foreach ($rows as $index => $row): ?>
                             <?php
                             $columnKeys = array_keys($columns);
-                            $hasFail = false;
-                            foreach ($columnKeys as $field) {
-                                if (($row[$field] ?? 'W') === 'F') {
-                                    $hasFail = true;
+                            $firstFailIndex = null;
+                            foreach ($columnKeys as $colIndex => $field) {
+                                $rawStatus = strtoupper(trim((string) ($row[$field] ?? 'W')));
+                                if ($rawStatus === 'F') {
+                                    $firstFailIndex = $colIndex;
                                     break;
                                 }
                             }
@@ -314,12 +318,13 @@ $columns = [
                                 <td><?= (int) ($row['global_order_no'] ?? ($offset + $index + 1)) ?></td>
                                 <td><?= $h((string) $row['idcode']) ?></td>
                                 <td><?= $h(trim(($row['prefix'] ?? '') . ($row['firstname'] ?? '') . ' ' . ($row['lastname'] ?? ''))) ?></td>
-                                <?php foreach ($columnKeys as $field): ?>
+                                <?php foreach ($columnKeys as $colIndex => $field): ?>
                                     <?php
-                                    $status = in_array(($row[$field] ?? 'W'), ['W', 'P', 'F'], true) ? $row[$field] : 'W';
-                                    $isPendingForFailedRow = $status === 'W' && $hasFail;
+                                    $rawStatus = strtoupper(trim((string) ($row[$field] ?? 'W')));
+                                    $status = in_array($rawStatus, ['W', 'P', 'F'], true) ? $rawStatus : 'W';
+                                    $isAfterFail = $firstFailIndex !== null && $colIndex > $firstFailIndex;
                                     ?>
-                                    <td class="step-status-<?= $h($status) ?>"><?= $isPendingForFailedRow ? '-' : $h($statusText[$status]) ?></td>
+                                    <td class="step-status-<?= $h($isAfterFail ? 'W' : $status) ?>"><?= $isAfterFail ? '-' : $h($statusText[$status]) ?></td>
                                 <?php endforeach; ?>
                             </tr>
                         <?php endforeach; ?>

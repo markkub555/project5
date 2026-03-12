@@ -68,7 +68,7 @@ $h = static fn(string $value): string => htmlspecialchars($value, ENT_QUOTES, 'U
                     <h2>เมนูหลักการประมวลผล</h2>
                     <p>เลือกขั้นตอนเพื่อเข้าสู่หน้าจัดการข้อมูลตามกระบวนการสอบ</p>
                 </div>
-                <a class="back-link" href="import_gptV1.php">เปลี่ยนปีข้อมูล</a>
+                <a class="back-link" href="import_gptV1.php">เลือกดูปีข้อมูล(รุ่น)</a>
             </div>
 
             <div class="grid">

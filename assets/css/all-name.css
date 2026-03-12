@@ -92,6 +92,41 @@ body {
     opacity: 0.92;
 }
 
+.header-home {
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    color: #fff !important;
+    text-decoration: none;
+}
+
+.header-right .header-home,
+.header-right .header-home:link,
+.header-right .header-home:visited,
+.header-right .header-home:hover,
+.header-right .header-home:active,
+.header-right .header-home:focus {
+    color: #fff !important;
+    text-decoration: none;
+}
+
+.header-home:visited,
+.header-home:active,
+.header-home:focus,
+.header-home i,
+.header-home i::before {
+    color: #fff !important;
+}
+
+.header-home:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+}
+
 .layout {
     display: grid;
     grid-template-columns: 250px 1fr;
