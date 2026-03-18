@@ -2,11 +2,14 @@
 session_start();
 require_once 'config/db.php';
 require_once __DIR__ . '/includes/user_profile.php';
+require_once __DIR__ . '/includes/ensure_applicant_schema.php';
 
 if (!isset($_SESSION['user_login'])) {
     header('Location: login.php');
     exit;
 }
+
+ensureApplicantSchema($conn);
 
 $userProfile = getCurrentUserProfile($conn);
 
@@ -93,7 +96,7 @@ $dataSql = "
     SELECT id, idcode, prefix, firstname, lastname, score
     FROM applicantname
     WHERE $whereSql
-    ORDER BY (score IS NULL OR score = '') ASC, CAST(score AS DECIMAL(10,2)) DESC, CAST(id AS UNSIGNED) ASC
+    ORDER BY (score IS NULL OR score = '') ASC, CAST(score AS DECIMAL(10,2)) DESC, id_num ASC
     LIMIT :limit OFFSET :offset
 ";
 $dataStmt = $conn->prepare($dataSql);

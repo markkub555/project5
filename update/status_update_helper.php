@@ -10,6 +10,23 @@ function handleStatusUpdate(
     ?array $editableNoteStatuses = null
 ): void
 {
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+
+    if (!isset($_SESSION['user_login'])) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Unauthorized']);
+        return;
+    }
+
+    $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if ($csrfToken === '' || !isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $csrfToken)) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Invalid CSRF token']);
+        return;
+    }
+
     header('Content-Type: application/json; charset=UTF-8');
 
     if (!preg_match('/^[a-zA-Z0-9_]+$/', $statusColumn) || !preg_match('/^[a-zA-Z0-9_]+$/', $noteColumn)) {

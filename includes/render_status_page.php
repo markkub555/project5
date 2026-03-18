@@ -6,6 +6,7 @@ function renderStatusPage(array $config): void
 {
     session_start();
     require __DIR__ . '/../config/db.php';
+    require_once __DIR__ . '/ensure_applicant_schema.php';
     require_once __DIR__ . '/user_profile.php';
 
     if (!isset($_SESSION['user_login'])) {
@@ -17,6 +18,13 @@ function renderStatusPage(array $config): void
         header('Location: import_gptV1.php');
         exit;
     }
+
+    if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] === '') {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    $csrfToken = (string) $_SESSION['csrf_token'];
+
+    ensureApplicantSchema($conn);
 
     $userProfile = getCurrentUserProfile($conn);
 
@@ -139,11 +147,11 @@ function renderStatusPage(array $config): void
                 FROM applicantname a2
                 WHERE a2.id <> 'id'
                   AND a2.exam_year = a.exam_year
-                  AND CAST(a2.id AS UNSIGNED) <= CAST(a.id AS UNSIGNED)
+                  AND a2.id_num <= a.id_num
             ) AS global_order_no
         FROM applicantname a
         WHERE $whereSql
-        ORDER BY CAST(a.id AS UNSIGNED)
+        ORDER BY a.id_num
         LIMIT :limit OFFSET :offset
     ");
 
@@ -437,6 +445,7 @@ function renderStatusPage(array $config): void
         const requiredNoteStatuses = <?= json_encode($requiredNoteStatuses, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
         const editableNoteStatuses = <?= json_encode($editableNoteStatuses, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
         const updateEndpoint = <?= json_encode((string) $config['update_endpoint']) ?>;
+        const csrfToken = <?= json_encode($csrfToken) ?>;
 
         checkAll.addEventListener('change', function() {
             document.querySelectorAll('.row-check').forEach((checkbox) => {
@@ -712,7 +721,8 @@ function renderStatusPage(array $config): void
                 const response = await fetch(updateEndpoint, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
                     },
                     body: JSON.stringify(payload)
                 });

@@ -5,6 +5,11 @@ require_once 'config/db.php';
 $yearStmt = $conn->query("\n    SELECT DISTINCT exam_year\n    FROM applicantname\n    WHERE exam_year IS NOT NULL\n    ORDER BY exam_year DESC\n");
 $years = $yearStmt->fetchAll(PDO::FETCH_COLUMN);
 
+if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] === '') {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$csrfToken = (string) $_SESSION['csrf_token'];
+
 $importMessage = '';
 if (isset($_SESSION['import_result'])) {
     $importMessage = (string) $_SESSION['import_result'];
@@ -314,6 +319,7 @@ $formatYearLabel = static function ($year): string {
 
             <form action="import_applicant.php" method="post" enctype="multipart/form-data">
                 <div class="form-grid">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                     <div class="form-group">
                         <label class="label" for="exam_year">นสต.รุ่นที่</label>
                         <input id="exam_year" class="input" type="number" name="exam_year" placeholder="เช่น 17" required>

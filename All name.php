@@ -2,6 +2,7 @@
 session_start();
 require_once 'config/db.php';
 require_once __DIR__ . '/includes/user_profile.php';
+require_once __DIR__ . '/includes/ensure_applicant_schema.php';
 
 if (!isset($_SESSION['user_login'])) {
     header('Location: login.php');
@@ -12,6 +13,13 @@ if (!isset($_SESSION['exam_year'])) {
     header('Location: import_gptV1.php');
     exit;
 }
+
+if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] === '') {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$csrfToken = (string) $_SESSION['csrf_token'];
+
+ensureApplicantSchema($conn);
 
 $userProfile = getCurrentUserProfile($conn);
 
@@ -129,7 +137,7 @@ $listStmt = $conn->prepare("
         $failReasonExpr AS fail_reason
     FROM applicantname
     WHERE $whereSql
-    ORDER BY CAST(id AS UNSIGNED)
+    ORDER BY id_num
     LIMIT :limit OFFSET :offset
 ");
 
@@ -511,7 +519,8 @@ if ($endPage - $startPage + 1 < $range) {
                 const response = await fetch('./update/update_Allname.php', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': <?= json_encode($csrfToken) ?>
                     },
                     body: JSON.stringify(payload)
                 });

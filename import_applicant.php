@@ -2,6 +2,13 @@
 session_start();
 require_once 'config/db.php';
 
+$csrfToken = (string) ($_POST['csrf_token'] ?? '');
+if ($csrfToken === '' || !isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $csrfToken)) {
+    http_response_code(403);
+    echo 'การยืนยันไม่ถูกต้อง';
+    exit;
+}
+
 $exam_year = trim((string) ($_POST['exam_year'] ?? ''));
 $fileInfo = $_FILES['file'] ?? null;
 

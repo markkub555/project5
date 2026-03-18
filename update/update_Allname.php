@@ -1,7 +1,21 @@
 <?php
+session_start();
 require_once '../config/db.php';
 
 header('Content-Type: application/json; charset=UTF-8');
+
+if (!isset($_SESSION['user_login'])) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Unauthorized']);
+    exit;
+}
+
+$csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+if ($csrfToken === '' || !isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $csrfToken)) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'error' => 'Invalid CSRF token']);
+    exit;
+}
 
 $payload = json_decode(file_get_contents('php://input'), true);
 
