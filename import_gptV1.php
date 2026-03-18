@@ -5,6 +5,12 @@ require_once 'config/db.php';
 $yearStmt = $conn->query("\n    SELECT DISTINCT exam_year\n    FROM applicantname\n    WHERE exam_year IS NOT NULL\n    ORDER BY exam_year DESC\n");
 $years = $yearStmt->fetchAll(PDO::FETCH_COLUMN);
 
+$importMessage = '';
+if (isset($_SESSION['import_result'])) {
+    $importMessage = (string) $_SESSION['import_result'];
+    unset($_SESSION['import_result']);
+}
+
 $formatYearLabel = static function ($year): string {
     $raw = trim((string) $year);
     if ($raw === '') {
@@ -302,6 +308,9 @@ $formatYearLabel = static function ($year): string {
         <section class="panel import-panel">
             <h2 class="panel-title"><i class="bi bi-database-add"></i>นำเข้าข้อมูลจากไฟล์</h2>
             <p class="panel-subtitle">รองรับไฟล์ CSV และ Excel เพื่อบันทึกข้อมูลผู้สมัครเข้าระบบ</p>
+            <?php if ($importMessage !== ''): ?>
+                <p class="panel-subtitle" style="color:#0f5132;font-weight:600;"><?= htmlspecialchars($importMessage, ENT_QUOTES, 'UTF-8') ?></p>
+            <?php endif; ?>
 
             <form action="import_applicant.php" method="post" enctype="multipart/form-data">
                 <div class="form-grid">

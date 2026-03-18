@@ -33,6 +33,20 @@ if (mb_strlen($search) > 100) {
     $search = mb_substr($search, 0, 100);
 }
 
+$sessionKey = 'selected_count_' . $examYear;
+$selectedCount = null;
+if (isset($_GET['selected_count'])) {
+    $selectedCount = (int) $_GET['selected_count'];
+    if ($selectedCount < 0) {
+        $selectedCount = 0;
+    }
+    $_SESSION[$sessionKey] = $selectedCount;
+} elseif (isset($_SESSION[$sessionKey])) {
+    $selectedCount = (int) $_SESSION[$sessionKey];
+} else {
+    $selectedCount = 0;
+}
+
 $limit = 20;
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $offset = ($page - 1) * $limit;
@@ -94,6 +108,9 @@ $rows = $dataStmt->fetchAll(PDO::FETCH_ASSOC);
 $baseQuery = ['exam_year' => $examYear];
 if ($search !== '') {
     $baseQuery['search'] = $search;
+}
+if ($selectedCount > 0) {
+    $baseQuery['selected_count'] = $selectedCount;
 }
 
 $range = 5;
@@ -180,9 +197,21 @@ if ($endPage - $startPage + 1 < $range) {
             <div class="toolbar">
                 <form method="GET" class="search-box">
                     <input type="hidden" name="exam_year" value="<?= $h($examYear) ?>">
+                    <?php if ($selectedCount > 0): ?>
+                        <input type="hidden" name="selected_count" value="<?= (int) $selectedCount ?>">
+                    <?php endif; ?>
                     <i class="bi bi-search"></i>
                     <input type="text" name="search" value="<?= $h($search) ?>" placeholder="ค้นหาเลขสอบ / ชื่อ / นามสกุล">
                     <button type="submit" class="btn btn-sm btn-danger">ค้นหา</button>
+                </form>
+                <form method="GET" class="search-box">
+                    <input type="hidden" name="exam_year" value="<?= $h($examYear) ?>">
+                    <?php if ($search !== ''): ?>
+                        <input type="hidden" name="search" value="<?= $h($search) ?>">
+                    <?php endif; ?>
+                    <i class="bi bi-people-fill"></i>
+                    <input type="number" min="0" name="selected_count" value="<?= $selectedCount > 0 ? (int) $selectedCount : '' ?>" placeholder="จำนวนผู้ได้รับการคัดเลือก">
+                    <button type="submit" class="btn btn-sm btn-danger">ตั้งค่า</button>
                 </form>
             </div>
 
@@ -194,20 +223,23 @@ if ($endPage - $startPage + 1 < $range) {
                             <th>เลขสอบ</th>
                             <th>ชื่อ-สกุล</th>
                             <th>คะแนน</th>
+                            <th>สถานะ</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (!$rows): ?>
                             <tr>
-                                <td colspan="4" class="empty-row">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td>
+                                <td colspan="5" class="empty-row">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td>
                             </tr>
                         <?php endif; ?>
                         <?php foreach ($rows as $index => $row): ?>
+                            <?php $rank = $offset + $index + 1; ?>
                             <tr>
-                                <td><?= $offset + $index + 1 ?></td>
+                                <td><?= $rank ?></td>
                                 <td><?= $h((string) $row['idcode']) ?></td>
-                                <td><?= $h(trim(($row['prefix'] ?? '') . ($row['firstname'] ?? '') . ' ' . ($row['lastname'] ?? ''))) ?></td>
+                                <td class="name-cell" style="text-align:left;padding-left:14px;"><?= $h(trim(($row['prefix'] ?? '') . ($row['firstname'] ?? '') . ' ' . ($row['lastname'] ?? ''))) ?></td>
                                 <td><?= $row['score'] === null || $row['score'] === '' ? '-' : $h((string) $row['score']) ?></td>
+                                <td><?= $selectedCount > 0 && $rank <= $selectedCount ? 'ผู้ได้รับการคัดเลือก' : 'สำรอง' ?></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>

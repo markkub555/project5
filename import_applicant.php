@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once 'config/db.php';
 
 $exam_year = trim((string) ($_POST['exam_year'] ?? ''));
@@ -142,15 +143,33 @@ array_shift($rows); // ข้าม header
 
 $sql = "INSERT INTO applicantname 
     (exam_year, id, idcode, prefix, firstname, lastname, score)
-    VALUES (?, ?, ?, ?, ?, ?, ?)";
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE
+        idcode = VALUES(idcode),
+        prefix = VALUES(prefix),
+        firstname = VALUES(firstname),
+        lastname = VALUES(lastname),
+        score = VALUES(score)";
 
 $stmt = $conn->prepare($sql);
+
+$inserted = 0;
+$updated = 0;
+$skipped = 0;
 
 foreach ($rows as $data) {
     $data = array_map('trim', $data);
     if (!isset($data[0]) || $data[0] === '' || !is_numeric($data[0])) {
+        $skipped++;
         continue;
     }
+    if (!isset($data[2]) || $data[2] === '') {
+        $skipped++;
+        continue;
+    }
+    $rawScore = $data[5] ?? '';
+    $rawScore = is_string($rawScore) ? trim($rawScore) : $rawScore;
+    $score = ($rawScore === '' || !is_numeric($rawScore)) ? null : $rawScore;
     $stmt->execute([
         $exam_year,
         $data[0], // id
@@ -158,8 +177,17 @@ foreach ($rows as $data) {
         $data[2] ?? '', // prefix
         $data[3] ?? '', // firstname
         $data[4] ?? '', // lastname
-        $data[5] ?? '', // score
+        $score, // score
     ]);
+
+    $affected = $stmt->rowCount();
+    if ($affected >= 2) {
+        $updated++;
+    } elseif ($affected === 1) {
+        $inserted++;
+    }
 }
 
-echo 'นำเข้าข้อมูลเรียบร้อย';
+$_SESSION['import_result'] = "นำเข้าข้อมูลเรียบร้อย (เพิ่มใหม่ {$inserted} รายการ, อัปเดต {$updated} รายการ, ข้าม {$skipped} รายการ)";
+header('Location: import_gptV1.php');
+exit;

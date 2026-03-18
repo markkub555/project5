@@ -289,7 +289,7 @@ function renderStatusPage(array $config): void
             <div class="status-bar">
                 <a class="badge text-bg-dark" href="?<?= http_build_query(array_filter(['exam_year' => $examYear, 'search' => $search])) ?>">แสดงทั้งหมด</a>
                 <a class="badge text-bg-secondary" href="?<?= http_build_query(array_filter(['exam_year' => $examYear, 'search' => $search, 'status' => 'W'])) ?>">รอดำเนินการ <?= $statusCount['W'] ?></a>
-                <a class="badge text-bg-success" href="?<?= http_build_query(array_filter(['exam_year' => $examYear, 'search' => $search, 'status' => 'P'])) ?>">ผ่าน <?= $statusCount['P'] ?></a>
+                <a class="badge text-bg-success" href="?<?= http_build_query(array_filter(['exam_year' => $examYear, 'search' => $search, 'status' => 'P'])) ?>">คงเหลือ <?= $statusCount['P'] ?></a>
                 <a class="badge text-bg-danger" href="?<?= http_build_query(array_filter(['exam_year' => $examYear, 'search' => $search, 'status' => 'F'])) ?>">ไม่ผ่าน <?= $statusCount['F'] ?></a>
             </div>
 

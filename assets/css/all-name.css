@@ -259,6 +259,11 @@ body {
     flex-wrap: wrap;
 }
 
+.name-cell {
+    text-align: left;
+    padding-left: 10px;
+}
+
 .status-bar .badge {
     text-decoration: none;
     padding: 0.38rem 0.56rem;
