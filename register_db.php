@@ -1,6 +1,9 @@
 <?php
 session_start();
 require_once 'config/db.php';
+require_once __DIR__ . '/includes/ensure_user_reset_schema.php';
+
+ensureUserResetSchema($conn);
 
 if (isset($_POST['register'])) {
 
@@ -9,13 +12,14 @@ if (isset($_POST['register'])) {
     $firstname  = trim($_POST['firstname']);
     $lastname   = trim($_POST['lastname']);
     $username   = trim($_POST['username']);
+    $email      = trim($_POST['email']);
     $number     = trim($_POST['number']);
     $password   = $_POST['password'];
     $c_password = $_POST['c_password'];
 
     // ตรวจสอบกรอกครบ
     if (empty($position) || empty($idnumber) || empty($firstname) ||
-        empty($lastname) || empty($username) || empty($number) ||
+        empty($lastname) || empty($username) || empty($email) || empty($number) ||
         empty($password) || empty($c_password)) {
 
         $_SESSION['error'] = "กรุณากรอกข้อมูลให้ครบทุกช่อง";
@@ -26,6 +30,12 @@ if (isset($_POST['register'])) {
     // ตรวจสอบรหัสผ่านตรงกัน
     if ($password !== $c_password) {
         $_SESSION['error'] = "รหัสผ่านไม่ตรงกัน";
+        header("location: register.php");
+        exit();
+    }
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $_SESSION['error'] = "รูปแบบอีเมลไม่ถูกต้อง";
         header("location: register.php");
         exit();
     }
@@ -42,13 +52,22 @@ if (isset($_POST['register'])) {
             exit();
         }
 
+        $emailCheck = $conn->prepare("SELECT id FROM users WHERE email = ?");
+        $emailCheck->execute([$email]);
+
+        if ($emailCheck->rowCount() > 0) {
+            $_SESSION['error'] = "อีเมลนี้ถูกใช้งานแล้ว";
+            header("location: register.php");
+            exit();
+        }
+
         // เข้ารหัสรหัสผ่าน
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
         // บันทึกข้อมูล
         $sql = "INSERT INTO users 
-                (position, idnumber, firstname, lastname, username, number, password) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)";
+                (position, idnumber, firstname, lastname, username, email, number, password) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
         $stmt = $conn->prepare($sql);
         $stmt->execute([
@@ -57,6 +76,7 @@ if (isset($_POST['register'])) {
             $firstname,
             $lastname,
             $username,
+            $email,
             $number,
             $hashed_password
         ]);

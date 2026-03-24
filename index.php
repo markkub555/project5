@@ -1,6 +1,9 @@
 <?php
 session_start();
 require_once 'config/db.php';
+require_once __DIR__ . '/includes/ensure_user_reset_schema.php';
+
+ensureUserResetSchema($conn);
 ?>
 
 <!DOCTYPE html>
@@ -147,6 +150,11 @@ require_once 'config/db.php';
                     <label class="form-label">เบอร์โทรศัพท์</label>
                     <input type="text" class="form-control" name="number" maxlength="10" pattern="[0-9]{9,10}"
                         inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g,'')" required>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">อีเมล</label>
+                    <input type="email" class="form-control" name="email" autocomplete="email" required>
                 </div>
 
                 <div class="col-md-6 mb-3">

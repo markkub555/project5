@@ -1,6 +1,9 @@
 <?php
 session_start();
 require_once 'config/db.php';
+require_once __DIR__ . '/includes/ensure_user_reset_schema.php';
+
+ensureUserResetSchema($conn);
 
 if (!isset($_SESSION['admin_login'])) {
     $_SESSION['error'] = 'กรุณาเข้าสู่ระบบ!';
@@ -29,6 +32,7 @@ $formData = [
     'firstname' => '',
     'lastname' => '',
     'username' => '',
+    'email' => '',
     'number' => '',
 ];
 $formError = '';
@@ -47,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
             'firstname' => trim((string) ($_POST['firstname'] ?? '')),
             'lastname' => trim((string) ($_POST['lastname'] ?? '')),
             'username' => trim((string) ($_POST['username'] ?? '')),
+            'email' => trim((string) ($_POST['email'] ?? '')),
             'number' => trim((string) ($_POST['number'] ?? '')),
         ];
         $isEditOpen = true;
@@ -58,9 +63,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
             $formData['firstname'] === '' ||
             $formData['lastname'] === '' ||
             $formData['username'] === '' ||
+            $formData['email'] === '' ||
             $formData['number'] === ''
         ) {
             $formError = 'กรุณากรอกข้อมูลให้ครบทุกช่อง';
+        } elseif (!filter_var($formData['email'], FILTER_VALIDATE_EMAIL)) {
+            $formError = 'รูปแบบอีเมลไม่ถูกต้อง';
         } else {
             $checkStmt = $conn->prepare('SELECT id FROM users WHERE username = :username AND id <> :id LIMIT 1');
             $checkStmt->execute([
@@ -68,8 +76,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
                 ':id' => $formData['id'],
             ]);
 
+            $emailCheckStmt = $conn->prepare('SELECT id FROM users WHERE email = :email AND id <> :id LIMIT 1');
+            $emailCheckStmt->execute([
+                ':email' => $formData['email'],
+                ':id' => $formData['id'],
+            ]);
+
             if ($checkStmt->fetch(PDO::FETCH_ASSOC)) {
                 $formError = 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว';
+            } elseif ($emailCheckStmt->fetch(PDO::FETCH_ASSOC)) {
+                $formError = 'อีเมลนี้ถูกใช้งานแล้ว';
             } else {
                 $updateStmt = $conn->prepare(
                     'UPDATE users
@@ -78,6 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
                          firstname = :firstname,
                          lastname = :lastname,
                          username = :username,
+                         email = :email,
                          number = :number
                      WHERE id = :id'
                 );
@@ -87,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
                     ':firstname' => $formData['firstname'],
                     ':lastname' => $formData['lastname'],
                     ':username' => $formData['username'],
+                    ':email' => $formData['email'],
                     ':number' => $formData['number'],
                     ':id' => $formData['id'],
                 ]);
@@ -104,7 +122,7 @@ if (isset($_SESSION['admin_success'])) {
     unset($_SESSION['admin_success']);
 }
 
-$listStmt = $conn->query('SELECT id, position, idnumber, firstname, lastname, username, number FROM users ORDER BY id');
+$listStmt = $conn->query('SELECT id, position, idnumber, firstname, lastname, username, email, number FROM users ORDER BY id');
 $users = $listStmt->fetchAll(PDO::FETCH_ASSOC);
 $totalUsers = count($users);
 ?>
@@ -230,10 +248,6 @@ $totalUsers = count($users);
             gap: 6px;
         }
 
-        .admin-form-group.full {
-            grid-column: 1 / -1;
-        }
-
         .admin-form-group label {
             font-size: 0.82rem;
             font-weight: 600;
@@ -355,6 +369,7 @@ $totalUsers = count($users);
                             <th>ชื่อ-สกุล</th>
                             <th>ตำแหน่ง</th>
                             <th>เลขบัตรประชาชน</th>
+                            <th>อีเมล</th>
                             <th>เบอร์โทร</th>
                             <th>แก้ไข</th>
                         </tr>
@@ -362,7 +377,7 @@ $totalUsers = count($users);
                     <tbody>
                         <?php if (!$users): ?>
                             <tr>
-                                <td colspan="7" class="empty-row">ไม่พบข้อมูลผู้เข้าใช้</td>
+                                <td colspan="8" class="empty-row">ไม่พบข้อมูลผู้เข้าใช้</td>
                             </tr>
                         <?php endif; ?>
                         <?php foreach ($users as $index => $user): ?>
@@ -374,6 +389,7 @@ $totalUsers = count($users);
                                 </td>
                                 <td><?= $h((string) $user['position']) ?></td>
                                 <td><?= $h((string) $user['idnumber']) ?></td>
+                                <td><?= $h((string) ($user['email'] ?? '')) ?></td>
                                 <td><?= $h((string) $user['number']) ?></td>
                                 <td>
                                     <button
@@ -385,6 +401,7 @@ $totalUsers = count($users);
                                         data-firstname="<?= $h((string) $user['firstname']) ?>"
                                         data-lastname="<?= $h((string) $user['lastname']) ?>"
                                         data-username="<?= $h((string) $user['username']) ?>"
+                                        data-email="<?= $h((string) ($user['email'] ?? '')) ?>"
                                         data-number="<?= $h((string) $user['number']) ?>"
                                     >
                                         แก้ไข
@@ -432,6 +449,10 @@ $totalUsers = count($users);
                         <input id="username" name="username" type="text" value="<?= $h($formData['username']) ?>" required>
                     </div>
                     <div class="admin-form-group">
+                        <label for="email">อีเมล</label>
+                        <input id="email" name="email" type="email" value="<?= $h($formData['email']) ?>" required>
+                    </div>
+                    <div class="admin-form-group">
                         <label for="number">เบอร์โทร</label>
                         <input id="number" name="number" type="text" value="<?= $h($formData['number']) ?>" required>
                     </div>
@@ -459,6 +480,7 @@ $totalUsers = count($users);
             firstname: document.getElementById('firstname'),
             lastname: document.getElementById('lastname'),
             username: document.getElementById('username'),
+            email: document.getElementById('email'),
             number: document.getElementById('number'),
         };
 
@@ -480,6 +502,7 @@ $totalUsers = count($users);
             formFields.firstname.value = button.dataset.firstname || '';
             formFields.lastname.value = button.dataset.lastname || '';
             formFields.username.value = button.dataset.username || '';
+            formFields.email.value = button.dataset.email || '';
             formFields.number.value = button.dataset.number || '';
             adminModal.classList.add('open');
         }
