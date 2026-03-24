@@ -28,25 +28,15 @@ $h = static function (string $value): string {
 
 $sql = "
     SELECT
-        SUM(CASE WHEN submit_doc = 'P' THEN 1 ELSE 0 END) AS doc_pass,
         SUM(CASE WHEN submit_doc = 'F' THEN 1 ELSE 0 END) AS doc_fail,
-        SUM(CASE WHEN lab_check = 'P' THEN 1 ELSE 0 END) AS lab_pass,
         SUM(CASE WHEN lab_check = 'F' THEN 1 ELSE 0 END) AS lab_fail,
-        SUM(CASE WHEN swim_test = 'P' THEN 1 ELSE 0 END) AS swim_pass,
         SUM(CASE WHEN swim_test = 'F' THEN 1 ELSE 0 END) AS swim_fail,
-        SUM(CASE WHEN run_test = 'P' THEN 1 ELSE 0 END) AS run_pass,
         SUM(CASE WHEN run_test = 'F' THEN 1 ELSE 0 END) AS run_fail,
-        SUM(CASE WHEN station3_test = 'P' THEN 1 ELSE 0 END) AS station3_pass,
         SUM(CASE WHEN station3_test = 'F' THEN 1 ELSE 0 END) AS station3_fail,
-        SUM(CASE WHEN hospital_check = 'P' THEN 1 ELSE 0 END) AS hospital_pass,
         SUM(CASE WHEN hospital_check = 'F' THEN 1 ELSE 0 END) AS hospital_fail,
-        SUM(CASE WHEN fingerprint_check = 'P' THEN 1 ELSE 0 END) AS fingerprint_pass,
         SUM(CASE WHEN fingerprint_check = 'F' THEN 1 ELSE 0 END) AS fingerprint_fail,
-        SUM(CASE WHEN background_check = 'P' THEN 1 ELSE 0 END) AS background_pass,
         SUM(CASE WHEN background_check = 'F' THEN 1 ELSE 0 END) AS background_fail,
-        SUM(CASE WHEN interview = 'P' THEN 1 ELSE 0 END) AS interview_pass,
         SUM(CASE WHEN interview = 'F' THEN 1 ELSE 0 END) AS interview_fail,
-        SUM(CASE WHEN militarydoc = 'P' THEN 1 ELSE 0 END) AS military_pass,
         SUM(CASE WHEN militarydoc = 'F' THEN 1 ELSE 0 END) AS military_fail
     FROM applicantname
     WHERE id <> 'id' AND exam_year = :exam_year
@@ -61,25 +51,15 @@ $totalStmt->execute([':exam_year' => $examYear]);
 $totalApplicants = (int) $totalStmt->fetchColumn();
 
 $chartData = [
-    'doc_pass' => (int) ($data['doc_pass'] ?? 0),
     'doc_fail' => (int) ($data['doc_fail'] ?? 0),
-    'lab_pass' => (int) ($data['lab_pass'] ?? 0),
     'lab_fail' => (int) ($data['lab_fail'] ?? 0),
-    'swim_pass' => (int) ($data['swim_pass'] ?? 0),
     'swim_fail' => (int) ($data['swim_fail'] ?? 0),
-    'run_pass' => (int) ($data['run_pass'] ?? 0),
     'run_fail' => (int) ($data['run_fail'] ?? 0),
-    'station3_pass' => (int) ($data['station3_pass'] ?? 0),
     'station3_fail' => (int) ($data['station3_fail'] ?? 0),
-    'hospital_pass' => (int) ($data['hospital_pass'] ?? 0),
     'hospital_fail' => (int) ($data['hospital_fail'] ?? 0),
-    'fingerprint_pass' => (int) ($data['fingerprint_pass'] ?? 0),
     'fingerprint_fail' => (int) ($data['fingerprint_fail'] ?? 0),
-    'background_pass' => (int) ($data['background_pass'] ?? 0),
     'background_fail' => (int) ($data['background_fail'] ?? 0),
-    'interview_pass' => (int) ($data['interview_pass'] ?? 0),
     'interview_fail' => (int) ($data['interview_fail'] ?? 0),
-    'military_pass' => (int) ($data['military_pass'] ?? 0),
     'military_fail' => (int) ($data['military_fail'] ?? 0),
 ];
 
@@ -96,19 +76,6 @@ $chartLabels = [
     'เอกสารทางทหาร',
 ];
 
-$chartPassData = [
-    $chartData['doc_pass'],
-    $chartData['lab_pass'],
-    $chartData['swim_pass'],
-    $chartData['run_pass'],
-    $chartData['station3_pass'],
-    $chartData['hospital_pass'],
-    $chartData['fingerprint_pass'],
-    $chartData['background_pass'],
-    $chartData['interview_pass'],
-    $chartData['military_pass'],
-];
-
 $chartFailData = [
     $chartData['doc_fail'],
     $chartData['lab_fail'],
@@ -123,20 +90,20 @@ $chartFailData = [
 ];
 
 $stageSummary = [
-    ['label' => 'ยื่นเอกสาร', 'pass' => $chartData['doc_pass'], 'fail' => $chartData['doc_fail']],
-    ['label' => 'ตรวจ LAB', 'pass' => $chartData['lab_pass'], 'fail' => $chartData['lab_fail']],
-    ['label' => 'ว่ายน้ำ', 'pass' => $chartData['swim_pass'], 'fail' => $chartData['swim_fail']],
-    ['label' => 'วิ่ง', 'pass' => $chartData['run_pass'], 'fail' => $chartData['run_fail']],
-    ['label' => '๓ สถานี', 'pass' => $chartData['station3_pass'], 'fail' => $chartData['station3_fail']],
-    ['label' => 'ตรวจร่างกาย รพ.ตร.', 'pass' => $chartData['hospital_pass'], 'fail' => $chartData['hospital_fail']],
-    ['label' => 'ตรวจลายนิ้วมือ ศพฐ.', 'pass' => $chartData['fingerprint_pass'], 'fail' => $chartData['fingerprint_fail']],
-    ['label' => 'ตรวจประวัติทางคดี', 'pass' => $chartData['background_pass'], 'fail' => $chartData['background_fail']],
-    ['label' => 'สัมภาษณ์', 'pass' => $chartData['interview_pass'], 'fail' => $chartData['interview_fail']],
-    ['label' => 'เอกสารทางทหาร', 'pass' => $chartData['military_pass'], 'fail' => $chartData['military_fail']],
+    ['label' => 'ยื่นเอกสาร', 'fail' => $chartData['doc_fail']],
+    ['label' => 'ตรวจ LAB', 'fail' => $chartData['lab_fail']],
+    ['label' => 'ว่ายน้ำ', 'fail' => $chartData['swim_fail']],
+    ['label' => 'วิ่ง', 'fail' => $chartData['run_fail']],
+    ['label' => '๓ สถานี', 'fail' => $chartData['station3_fail']],
+    ['label' => 'ตรวจร่างกาย รพ.ตร.', 'fail' => $chartData['hospital_fail']],
+    ['label' => 'ตรวจลายนิ้วมือ ศพฐ.', 'fail' => $chartData['fingerprint_fail']],
+    ['label' => 'ตรวจประวัติทางคดี', 'fail' => $chartData['background_fail']],
+    ['label' => 'สัมภาษณ์', 'fail' => $chartData['interview_fail']],
+    ['label' => 'เอกสารทางทหาร', 'fail' => $chartData['military_fail']],
 ];
 
 foreach ($stageSummary as &$stage) {
-    $total = $stage['pass'] + $stage['fail'];
+    $total = $totalApplicants;
     $stage['total'] = $total;
     $stage['fail_rate'] = $total > 0 ? round(($stage['fail'] / $total) * 100, 1) : 0;
 }
@@ -163,8 +130,22 @@ usort($stageSummary, static function (array $a, array $b): int {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link href="assets/css/all-name.css?v=<?= $h($assetVersion) ?>" rel="stylesheet">
     <style>
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            overflow: hidden;
+        }
+
+        .layout {
+            height: calc(100dvh - var(--header-h));
+        }
+
         .content {
             overflow: auto;
+            height: 100%;
         }
 
         .hero {
@@ -172,12 +153,12 @@ usort($stageSummary, static function (array $a, array $b): int {
             justify-content: space-between;
             gap: 18px;
             flex-wrap: wrap;
-            padding: 16px;
+            padding: 12px;
             border-radius: 18px;
             background: linear-gradient(135deg, #fff 0%, #fff5f5 45%, #f7f8ff 100%);
             border: 1px solid var(--line);
             box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
-            margin-bottom: 14px;
+            margin-bottom: 10px;
         }
 
         .hero-title {
@@ -203,7 +184,7 @@ usort($stageSummary, static function (array $a, array $b): int {
             background: #fff;
             border: 1px solid var(--line);
             border-radius: 14px;
-            padding: 12px;
+            padding: 10px;
             display: flex;
             gap: 10px;
             align-items: center;
@@ -237,14 +218,28 @@ usort($stageSummary, static function (array $a, array $b): int {
             background: var(--panel);
             border: 1px solid var(--line);
             border-radius: 16px;
-            padding: 16px;
+            padding: 12px;
             box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            --chart-h: 350px;
         }
 
         .panel-grid {
             display: grid;
             grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr);
             gap: 14px;
+            min-height: 0;
+            height: 100%;
+            flex: 1;
+        }
+
+        .panel-main {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
         }
 
         .panel-head {
@@ -285,7 +280,12 @@ usort($stageSummary, static function (array $a, array $b): int {
 
         .chart-wrap {
             position: relative;
-            height: min(420px, 55vh);
+            height: var(--chart-h);
+        }
+
+        #examChart {
+            width: 100% !important;
+            height: 100% !important;
         }
 
         .chart-note {
@@ -298,11 +298,19 @@ usort($stageSummary, static function (array $a, array $b): int {
             background: #fff;
             border: 1px solid var(--line);
             border-radius: 14px;
-            padding: 14px;
-            height: 100%;
+            padding: 12px;
+            height: var(--chart-h);
             display: flex;
             flex-direction: column;
             gap: 10px;
+        }
+
+        .insight-scroll {
+            overflow-y: auto;
+            max-height: none;
+            flex: 1;
+            min-height: 0;
+            padding-right: 4px;
         }
 
         .insight-title {
@@ -441,7 +449,7 @@ usort($stageSummary, static function (array $a, array $b): int {
                         <div class="kpi-icon" style="background:#e0f2fe;color:#0c4a6e;"><i class="bi bi-graph-up"></i></div>
                         <div>
                             <p class="kpi-label">กราฟแยกผล</p>
-                            <p class="kpi-value">ผ่าน / ไม่ผ่าน</p>
+                            <p class="kpi-value">เฉพาะไม่ผ่าน</p>
                         </div>
                     </div>
                 </div>
@@ -449,38 +457,39 @@ usort($stageSummary, static function (array $a, array $b): int {
 
             <section class="panel">
                 <div class="panel-grid">
-                    <div>
+                    <div class="panel-main">
                         <div class="panel-head">
-                            <div class="panel-title">สรุปผลการทดสอบ 10 ขั้นตอน</div>
+                            <div class="panel-title">สรุปผลการทดสอบ 10 ขั้นตอน (ไม่ผ่าน)</div>
                             <div class="legend-row">
-                                <div class="legend-item"><span class="legend-dot" style="background:#22c55e;"></span>ผ่าน</div>
                                 <div class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span>ไม่ผ่าน</div>
                             </div>
                         </div>
                         <div class="chart-wrap">
                             <canvas id="examChart"></canvas>
                         </div>
-                        <div class="chart-note">หมายเหตุ: แผนภูมิแสดงจำนวนผู้ผ่านและไม่ผ่านแยกตามขั้นตอน ไม่ใช่ผลรวมทั้งกระบวนการ</div>
+                        <div class="chart-note">หมายเหตุ: แผนภูมิแสดงจำนวนผู้ไม่ผ่านแยกตามขั้นตอน ไม่ใช่ผลรวมทั้งกระบวนการ</div>
                     </div>
                     <div class="insight-card">
                         <p class="insight-title">ขั้นตอนที่มีผู้ไม่ผ่านสูงสุด</p>
-                        <?php foreach (array_slice($stageSummary, 0, 3) as $stage): ?>
-                            <div class="insight-item">
-                                <div>
-                                    <p class="insight-label"><?= $h($stage['label']) ?></p>
-                                    <p class="insight-meta">ไม่ผ่าน <?= number_format($stage['fail']) ?> คน (<?= number_format($stage['fail_rate'], 1) ?>%)</p>
+                        <div class="insight-scroll">
+                            <?php foreach (array_slice($stageSummary, 0, 10) as $stage): ?>
+                                <div class="insight-item">
+                                    <div>
+                                        <p class="insight-label"><?= $h($stage['label']) ?></p>
+                                        <p class="insight-meta">ไม่ผ่าน <?= number_format($stage['fail']) ?> คน (<?= number_format($stage['fail_rate'], 1) ?>%)</p>
+                                    </div>
+                                    <div class="insight-badge"><?= number_format($stage['fail']) ?></div>
                                 </div>
-                                <div class="insight-badge"><?= number_format($stage['fail']) ?></div>
-                            </div>
-                        <?php endforeach; ?>
-                        <?php if (!$stageSummary): ?>
-                            <div class="insight-item">
-                                <div>
-                                    <p class="insight-label">ยังไม่มีข้อมูล</p>
-                                    <p class="insight-meta">กรุณาเพิ่มข้อมูลผู้สมัครก่อน</p>
+                            <?php endforeach; ?>
+                            <?php if (!$stageSummary): ?>
+                                <div class="insight-item">
+                                    <div>
+                                        <p class="insight-label">ยังไม่มีข้อมูล</p>
+                                        <p class="insight-meta">กรุณาเพิ่มข้อมูลผู้สมัครก่อน</p>
+                                    </div>
                                 </div>
-                            </div>
-                        <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -501,7 +510,6 @@ usort($stageSummary, static function (array $a, array $b): int {
             }
 
             const labels = <?= json_encode($chartLabels, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
-            const passData = <?= json_encode($chartPassData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
             const failData = <?= json_encode($chartFailData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 
             new Chart(canvas, {
@@ -509,20 +517,12 @@ usort($stageSummary, static function (array $a, array $b): int {
                 data: {
                     labels,
                     datasets: [{
-                            label: 'ผ่าน',
-                            data: passData,
-                            backgroundColor: '#22c55e',
-                            borderRadius: 6,
-                            borderSkipped: false
-                        },
-                        {
-                            label: 'ไม่ผ่าน',
-                            data: failData,
-                            backgroundColor: '#ef4444',
-                            borderRadius: 6,
-                            borderSkipped: false
-                        }
-                    ]
+                        label: 'ไม่ผ่าน',
+                        data: failData,
+                        backgroundColor: '#ef4444',
+                        borderRadius: 6,
+                        borderSkipped: false
+                    }]
                 },
                 options: {
                     responsive: true,
