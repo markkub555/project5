@@ -1,5 +1,5 @@
 <?php
-$servername = "192.168.1.7";   // IP ตัวเอง
+$servername = "192.168.1.9";   // IP ตัวเอง
 $username   = "shareduser";    // user กลาง
 $password   = "1234";
 
