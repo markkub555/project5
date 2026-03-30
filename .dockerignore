@@ -1,0 +1,8 @@
+.git
+.gitignore
+.DS_Store
+docker/mysql/data
+mysql_data
+*.log
+*.swp
+*.bak

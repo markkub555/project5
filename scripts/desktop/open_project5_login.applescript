@@ -1,3 +1,4 @@
-on run
+tell application "Safari"
     open location "http://localhost/project5/login.php"
-end run
+    activate
+end tell

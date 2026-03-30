@@ -1,0 +1,67 @@
+services:
+  php-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: php-app
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      DB_HOST: mysql-db
+      DB_PORT: 3306
+      DB_NAME: register
+      DB_USERNAME: shareduser
+      DB_PASSWORD: 1234
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_USERNAME: panu.060944@gmail.com
+      SMTP_PASSWORD: tppr ltyb kxcn nqgm
+      SMTP_FROM_EMAIL: panu.060944@gmail.com
+      SMTP_FROM_NAME: Training Center of Provincial Police Region 5
+      SMTP_SECURE: tls
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+
+  mysql-db:
+    build:
+      context: .
+      dockerfile: docker/mysql/Dockerfile
+    container_name: mysql-db
+    restart: unless-stopped
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: register
+      MYSQL_USER: shareduser
+      MYSQL_PASSWORD: 1234
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  phpmyadmin:
+    image: phpmyadmin:5.2-apache
+    container_name: phpmyadmin
+    restart: unless-stopped
+    environment:
+      PMA_HOST: mysql-db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: root
+      UPLOAD_LIMIT: 128M
+    ports:
+      - "8081:80"
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+
+volumes:
+  mysql_data:

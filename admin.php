@@ -459,9 +459,6 @@ if ($view === 'pending') {
             </div>
         </div>
         <div class="header-right">
-            <a class="header-home" href="menu.php" aria-label="กลับหน้าเมนูหลัก" style="color:#fff;">
-                <i class="bi bi-house-door-fill" style="color:#fff;"></i>
-            </a>
             <div class="header-meta">
                 <strong><?= $h($pageTitle) ?></strong>
                 <span><?= $h($pageSubtitle) ?></span>
