@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_login'])) {
     exit;
 }
 
-ensureApplicantSchema($conn);
+$applicantSchema = ensureApplicantSchema($conn);
 
 $userProfile = getCurrentUserProfile($conn);
 
@@ -122,15 +122,10 @@ $dataSql = "
     SELECT id, idcode, prefix, firstname, lastname,
            submit_doc, lab_check, swim_test, run_test, station3_test,
            hospital_check, fingerprint_check, background_check, interview, militarydoc,
-           (
-               SELECT COUNT(*)
-               FROM applicantname a2
-               WHERE a2.exam_year = applicantname.exam_year
-                 AND a2.id_num <= applicantname.id_num
-           ) AS global_order_no
+           " . applicantOrderExpr($applicantSchema) . " AS global_order_no
     FROM applicantname
     WHERE $whereSql
-    ORDER BY id_num ASC
+    ORDER BY " . applicantOrderExpr($applicantSchema) . " ASC
     LIMIT :limit OFFSET :offset
 ";
 $dataStmt = $conn->prepare($dataSql);
@@ -178,11 +173,9 @@ $columns = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>สรุปผลรายขั้นตอน</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+                <link href="assets/vendor/bootstrap-5.3.2/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/local-fonts.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link href="assets/css/all-name.css" rel="stylesheet">
     <style>
         .step-status-W {
@@ -265,6 +258,7 @@ $columns = [
             <a class="menu-btn active" href="Step.php">สรุปผลรายขั้นตอน</a>
             <a class="menu-btn" href="selected.php">ผู้ได้รับการคัดเลือก</a>
             <a class="menu-btn" href="final.php">สรุปข้อมูลการสอบ นสต.</a>
+            <a class="menu-btn" href="export.php">นำข้อมูลออก</a>
         </aside>
 
         <main class="content">

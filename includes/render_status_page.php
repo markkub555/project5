@@ -7,6 +7,7 @@ function renderStatusPage(array $config): void
     session_start();
     require __DIR__ . '/../config/db.php';
     require_once __DIR__ . '/ensure_applicant_schema.php';
+    require_once __DIR__ . '/applicant_notes.php';
     require_once __DIR__ . '/user_profile.php';
 
     if (!isset($_SESSION['user_login'])) {
@@ -24,7 +25,8 @@ function renderStatusPage(array $config): void
     }
     $csrfToken = (string) $_SESSION['csrf_token'];
 
-    ensureApplicantSchema($conn);
+    $applicantSchema = ensureApplicantSchema($conn);
+    ensureApplicantNotesSchema($conn);
 
     $userProfile = getCurrentUserProfile($conn);
 
@@ -37,6 +39,7 @@ function renderStatusPage(array $config): void
 
     $statusColumn = (string) $config['status_column'];
     $noteColumn = (string) $config['note_column'];
+    $noteStageKey = noteColumnToStageKey($noteColumn);
 
     if (!preg_match('/^[a-zA-Z0-9_]+$/', $statusColumn) || !preg_match('/^[a-zA-Z0-9_]+$/', $noteColumn)) {
         throw new RuntimeException('Invalid column name in config');
@@ -102,21 +105,26 @@ function renderStatusPage(array $config): void
         $search = mb_substr($search, 0, 100);
     }
 
-    $whereParts = ["id <> 'id'", 'exam_year = :exam_year'];
+    $whereParts = ["applicantname.id <> 'id'", 'applicantname.exam_year = :exam_year'];
     if ($stageScopeSql !== '') {
         $whereParts[] = $stageScopeSql;
     }
     $queryParams = [':exam_year' => $examYear];
+    $listQueryParams = $queryParams;
 
     if ($statusFilter !== '') {
-        $whereParts[] = "$statusColumn = :status";
+        $whereParts[] = "applicantname.$statusColumn = :status";
         $queryParams[':status'] = $statusFilter;
+        $listQueryParams[':status'] = $statusFilter;
     }
 
     if ($search !== '') {
-        $whereParts[] = '(idcode LIKE :search OR firstname LIKE :search OR lastname LIKE :search)';
+        $whereParts[] = '(applicantname.idcode LIKE :search OR applicantname.firstname LIKE :search OR applicantname.lastname LIKE :search)';
         $queryParams[':search'] = '%' . $search . '%';
+        $listQueryParams[':search'] = '%' . $search . '%';
     }
+
+    $listQueryParams[':note_stage_key'] = $noteStageKey;
 
     $whereSql = implode(' AND ', $whereParts);
 
@@ -135,27 +143,25 @@ function renderStatusPage(array $config): void
 
     $listStmt = $conn->prepare("
         SELECT
-            a.id,
-            a.idcode,
-            a.prefix,
-            a.firstname,
-            a.lastname,
+            applicantname.id,
+            applicantname.idcode,
+            applicantname.prefix,
+            applicantname.firstname,
+            applicantname.lastname,
             $statusColumn AS step_status,
-            $noteColumn AS step_note,
-            (
-                SELECT COUNT(*)
-                FROM applicantname a2
-                WHERE a2.id <> 'id'
-                  AND a2.exam_year = a.exam_year
-                  AND a2.id_num <= a.id_num
-            ) AS global_order_no
-        FROM applicantname a
+            COALESCE(an.note, '') AS step_note,
+            " . applicantOrderExpr($applicantSchema, 'applicantname') . " AS global_order_no
+        FROM applicantname
+        LEFT JOIN applicant_notes an
+            ON CONVERT(an.exam_year USING utf8mb4) = CONVERT(applicantname.exam_year USING utf8mb4)
+           AND CONVERT(an.applicant_id USING utf8mb4) = CONVERT(" . applicantIdTextExpr('applicantname') . " USING utf8mb4)
+           AND an.stage_key = :note_stage_key
         WHERE $whereSql
-        ORDER BY a.id_num
+        ORDER BY " . applicantOrderExpr($applicantSchema, 'applicantname') . "
         LIMIT :limit OFFSET :offset
     ");
 
-    foreach ($queryParams as $key => $value) {
+    foreach ($listQueryParams as $key => $value) {
         $listStmt->bindValue($key, $value);
     }
     $listStmt->bindValue(':limit', $limit, PDO::PARAM_INT);
@@ -207,6 +213,7 @@ function renderStatusPage(array $config): void
         ['file' => 'Step.php', 'label' => 'สรุปผลรายขั้นตอน'],
         ['file' => 'selected.php', 'label' => 'ผู้ได้รับการคัดเลือก'],
         ['file' => 'final.php', 'label' => 'สรุปข้อมูลการสอบ นสต.'],
+        ['file' => 'export.php', 'label' => 'นำข้อมูลออก'],
     ];
 ?>
 <!DOCTYPE html>
@@ -216,11 +223,9 @@ function renderStatusPage(array $config): void
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= $h((string) $config['page_title']) ?></title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+                <link href="assets/vendor/bootstrap-5.3.2/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/local-fonts.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link href="assets/css/all-name.css" rel="stylesheet">
     <link href="assets/css/status-page.css" rel="stylesheet">
 </head>

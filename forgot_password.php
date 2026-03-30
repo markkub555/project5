@@ -198,13 +198,14 @@ if (isset($_SESSION['forgot_reset_email'], $_SESSION['forgot_reset_token']) && $
     <meta charset="UTF-8">
     <title>ลืมรหัสผ่าน</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-5.0.2/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/local-fonts.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         body {
             min-height: 100vh;
             margin: 0;
-            background-image: url('upload/5.png');
+            background-image: url('upload/5-login.jpg');
             background-size: cover;
             background-position: center;
             display: flex;
@@ -295,7 +296,7 @@ if (isset($_SESSION['forgot_reset_email'], $_SESSION['forgot_reset_token']) && $
 <body>
     <div class="forgot-card">
         <div class="header-section">
-            <img src="upload/4.webp" alt="Logo">
+            <img src="upload/4.webp" alt="Logo" decoding="async">
             <h4 class="system-title">ลืมรหัสผ่าน</h4>
             <div class="system-subtitle">รับ OTP ทางอีเมลและตั้งรหัสผ่านใหม่</div>
         </div>

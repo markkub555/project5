@@ -8,17 +8,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <!-- Bootstrap 5 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-5.0.2/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/local-fonts.css" rel="stylesheet">
 
     <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 
     <style>
     body {
         height: 85vh;
         margin: 0;
         background-color: #f5f0f0;
-        background-image: url('upload/5.png');
+        background-image: url('upload/5-login.jpg');
         background-repeat: no-repeat;
         background-position: 0% center;
         background-size: 100%;

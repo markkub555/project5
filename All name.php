@@ -3,6 +3,7 @@ session_start();
 require_once 'config/db.php';
 require_once __DIR__ . '/includes/user_profile.php';
 require_once __DIR__ . '/includes/ensure_applicant_schema.php';
+require_once __DIR__ . '/includes/applicant_notes.php';
 
 if (!isset($_SESSION['user_login'])) {
     header('Location: login.php');
@@ -19,7 +20,8 @@ if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] === '') {
 }
 $csrfToken = (string) $_SESSION['csrf_token'];
 
-ensureApplicantSchema($conn);
+$applicantSchema = ensureApplicantSchema($conn);
+ensureApplicantNotesSchema($conn);
 
 $userProfile = getCurrentUserProfile($conn);
 
@@ -44,71 +46,18 @@ if (mb_strlen($search) > 100) {
     $search = mb_substr($search, 0, 100);
 }
 
-$failCondition = implode(' OR ', [
-    "submit_doc = 'F'",
-    "lab_check = 'F'",
-    "swim_test = 'F'",
-    "run_test = 'F'",
-    "station3_test = 'F'",
-    "hospital_check = 'F'",
-    "fingerprint_check = 'F'",
-    "background_check = 'F'",
-    "interview = 'F'",
-    "militarydoc = 'F'",
-]);
+$allnameExpr = applicantAllnameExpr($applicantSchema);
 
-$passCondition = implode(' AND ', [
-    "submit_doc = 'P'",
-    "lab_check = 'P'",
-    "swim_test = 'P'",
-    "run_test = 'P'",
-    "station3_test = 'P'",
-    "hospital_check = 'P'",
-    "fingerprint_check = 'P'",
-    "background_check = 'P'",
-    "interview = 'P'",
-    "militarydoc = 'P'",
-]);
-
-$autoStatusExpr = "CASE
-    WHEN ($failCondition) THEN 'F'
-    WHEN ($passCondition) THEN 'P'
-    ELSE 'W'
-END";
-
-$failReasonExpr = "CASE
-    WHEN submit_doc = 'F' THEN CONCAT('ด่าน 1 ยื่นเอกสาร', IF(TRIM(IFNULL(submit_doc_note, '')) <> '', CONCAT(' : ', TRIM(submit_doc_note)), ''))
-    WHEN lab_check = 'F' THEN CONCAT('ด่าน 2 ตรวจ LAB', IF(TRIM(IFNULL(lab_check_note, '')) <> '', CONCAT(' : ', TRIM(lab_check_note)), ''))
-    WHEN swim_test = 'F' THEN CONCAT('ด่าน 3 ว่ายน้ำ', IF(TRIM(IFNULL(swim_test_note, '')) <> '', CONCAT(' : ', TRIM(swim_test_note)), ''))
-    WHEN run_test = 'F' THEN CONCAT('ด่าน 4 วิ่ง', IF(TRIM(IFNULL(run_test_note, '')) <> '', CONCAT(' : ', TRIM(run_test_note)), ''))
-    WHEN station3_test = 'F' THEN CONCAT('ด่าน 5 3 สถานี', IF(TRIM(IFNULL(station3_test_note, '')) <> '', CONCAT(' : ', TRIM(station3_test_note)), ''))
-    WHEN hospital_check = 'F' THEN CONCAT('ด่าน 6 ตรวจร่างกาย รพ.ตร.', IF(TRIM(IFNULL(hospital_check_note, '')) <> '', CONCAT(' : ', TRIM(hospital_check_note)), ''))
-    WHEN fingerprint_check = 'F' THEN CONCAT('ด่าน 7 ลายนิ้วมือ ศพฐ.', IF(TRIM(IFNULL(fingerprint_check_note, '')) <> '', CONCAT(' : ', TRIM(fingerprint_check_note)), ''))
-    WHEN background_check = 'F' THEN CONCAT('ด่าน 8 ประวัติทางคดี', IF(TRIM(IFNULL(background_check_note, '')) <> '', CONCAT(' : ', TRIM(background_check_note)), ''))
-    WHEN interview = 'F' THEN CONCAT('ด่าน 9 สัมภาษณ์', IF(TRIM(IFNULL(interview_note, '')) <> '', CONCAT(' : ', TRIM(interview_note)), ''))
-    WHEN militarydoc = 'F' THEN CONCAT('ด่าน 10 เอกสารทางทหาร', IF(TRIM(IFNULL(militarydoc_note, '')) <> '', CONCAT(' : ', TRIM(militarydoc_note)), ''))
-    ELSE ''
-END";
-
-// อัปเดตสถานะรวมอัตโนมัติตาม 9 ด่านทุกครั้งที่เปิดหน้า
-$autoUpdateStmt = $conn->prepare("
-    UPDATE applicantname
-    SET allname = $autoStatusExpr
-    WHERE id <> 'id' AND exam_year = :exam_year
-");
-$autoUpdateStmt->bindValue(':exam_year', $examYear);
-$autoUpdateStmt->execute();
-
-$whereParts = ["id <> 'id'", 'exam_year = :exam_year'];
+$whereParts = ["applicantname.id <> 'id'", 'applicantname.exam_year = :exam_year'];
 $queryParams = [':exam_year' => $examYear];
 
 if ($statusFilter !== '') {
-    $whereParts[] = 'allname = :status';
+    $whereParts[] = "($allnameExpr) = :status";
     $queryParams[':status'] = $statusFilter;
 }
 
 if ($search !== '') {
-    $whereParts[] = '(idcode LIKE :search OR firstname LIKE :search OR lastname LIKE :search)';
+    $whereParts[] = '(applicantname.idcode LIKE :search OR applicantname.firstname LIKE :search OR applicantname.lastname LIKE :search)';
     $queryParams[':search'] = '%' . $search . '%';
 }
 
@@ -128,16 +77,25 @@ if ($page > $totalPages) {
 
 $listStmt = $conn->prepare("
     SELECT
-        id,
-        idcode,
-        prefix,
-        firstname,
-        lastname,
-        allname,
-        $failReasonExpr AS fail_reason
+        applicantname.id,
+        applicantname.idcode,
+        applicantname.prefix,
+        applicantname.firstname,
+        applicantname.lastname,
+        applicantname.submit_doc,
+        applicantname.lab_check,
+        applicantname.swim_test,
+        applicantname.run_test,
+        applicantname.station3_test,
+        applicantname.hospital_check,
+        applicantname.fingerprint_check,
+        applicantname.background_check,
+        applicantname.interview,
+        applicantname.militarydoc,
+        ($allnameExpr) AS allname
     FROM applicantname
     WHERE $whereSql
-    ORDER BY id_num
+    ORDER BY " . applicantOrderExpr($applicantSchema, 'applicantname') . "
     LIMIT :limit OFFSET :offset
 ");
 
@@ -149,7 +107,70 @@ $listStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $listStmt->execute();
 $rows = $listStmt->fetchAll(PDO::FETCH_ASSOC);
 
-$statusStmt = $conn->prepare("\n    SELECT\n        SUM(CASE WHEN allname = 'W' THEN 1 ELSE 0 END) AS waiting_count,\n        SUM(CASE WHEN allname = 'P' THEN 1 ELSE 0 END) AS pass_count,\n        SUM(CASE WHEN allname = 'F' THEN 1 ELSE 0 END) AS fail_count\n    FROM applicantname\n    WHERE id <> 'id' AND exam_year = :exam_year\n");
+$stageLabels = [
+    'submit_doc' => 'ด่าน 1 ยื่นเอกสาร',
+    'lab_check' => 'ด่าน 2 ตรวจ LAB',
+    'swim_test' => 'ด่าน 3 ว่ายน้ำ',
+    'run_test' => 'ด่าน 4 วิ่ง',
+    'station3_test' => 'ด่าน 5 3 สถานี',
+    'hospital_check' => 'ด่าน 6 ตรวจร่างกาย รพ.ตร.',
+    'fingerprint_check' => 'ด่าน 7 ลายนิ้วมือ ศพฐ.',
+    'background_check' => 'ด่าน 8 ประวัติทางคดี',
+    'interview' => 'ด่าน 9 สัมภาษณ์',
+    'militarydoc' => 'ด่าน 10 เอกสารทางทหาร',
+];
+
+$noteMapByApplicant = [];
+$rowIds = [];
+foreach ($rows as $row) {
+    $rowId = trim((string) ($row['id'] ?? ''));
+    if ($rowId !== '') {
+        $rowIds[] = $rowId;
+    }
+}
+
+if ($rowIds !== []) {
+    $rowIds = array_values(array_unique($rowIds));
+    $placeholders = implode(',', array_fill(0, count($rowIds), '?'));
+    $noteStmt = $conn->prepare(
+        "SELECT applicant_id, stage_key, note
+         FROM applicant_notes
+         WHERE exam_year = ?
+           AND applicant_id IN ($placeholders)"
+    );
+    $noteStmt->bindValue(1, $examYear);
+    foreach ($rowIds as $index => $rowId) {
+        $noteStmt->bindValue($index + 2, $rowId);
+    }
+    $noteStmt->execute();
+    foreach ($noteStmt->fetchAll(PDO::FETCH_ASSOC) as $noteRow) {
+        $applicantId = trim((string) ($noteRow['applicant_id'] ?? ''));
+        $stageKey = trim((string) ($noteRow['stage_key'] ?? ''));
+        if ($applicantId === '' || $stageKey === '') {
+            continue;
+        }
+
+        $noteMapByApplicant[$applicantId][$stageKey] = trim((string) ($noteRow['note'] ?? ''));
+    }
+}
+
+foreach ($rows as &$row) {
+    $row['fail_reason'] = '';
+    $applicantId = trim((string) ($row['id'] ?? ''));
+
+    foreach ($stageLabels as $stageKey => $label) {
+        if (($row[$stageKey] ?? '') !== 'F') {
+            continue;
+        }
+
+        $note = $noteMapByApplicant[$applicantId][$stageKey] ?? '';
+        $row['fail_reason'] = $label . ($note !== '' ? ' : ' . $note : '');
+        break;
+    }
+}
+unset($row);
+
+$statusStmt = $conn->prepare("\n    SELECT\n        SUM(CASE WHEN ($allnameExpr) = 'W' THEN 1 ELSE 0 END) AS waiting_count,\n        SUM(CASE WHEN ($allnameExpr) = 'P' THEN 1 ELSE 0 END) AS pass_count,\n        SUM(CASE WHEN ($allnameExpr) = 'F' THEN 1 ELSE 0 END) AS fail_count\n    FROM applicantname\n    WHERE id <> 'id' AND exam_year = :exam_year\n");
 $statusStmt->bindValue(':exam_year', $examYear);
 $statusStmt->execute();
 $statusRow = $statusStmt->fetch(PDO::FETCH_ASSOC) ?: [];
@@ -181,11 +202,9 @@ if ($endPage - $startPage + 1 < $range) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>รายชื่อทั้งหมด</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+                <link href="assets/vendor/bootstrap-5.3.2/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/local-fonts.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link href="assets/css/all-name.css" rel="stylesheet">
 </head>
 
@@ -245,6 +264,7 @@ if ($endPage - $startPage + 1 < $range) {
             <a class="menu-btn" href="Step.php">สรุปผลรายขั้นตอน</a>
             <a class="menu-btn" href="selected.php">ผู้ได้รับการคัดเลือก</a>
             <a class="menu-btn" href="final.php">สรุปข้อมูลการสอบ นสต.</a>
+            <a class="menu-btn" href="export.php">นำข้อมูลออก</a>
         </aside>
 
         <main class="content">

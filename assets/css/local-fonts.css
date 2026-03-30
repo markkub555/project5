@@ -1,0 +1,11 @@
+:root {
+  --app-font: "Noto Sans Thai", "Sarabun", Tahoma, sans-serif;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--app-font);
+}

@@ -14,13 +14,14 @@ ensureUserResetSchema($conn);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ลงทะเบียนเข้าใช้งานระบบ</title>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-5.0.2/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/local-fonts.css" rel="stylesheet">
 
     <style>
     body {
         min-height: 100vh;
         margin: 0;
-        background-image: url('upload/5.png');
+        background-image: url('upload/5-login.jpg');
         background-size: cover;
         background-position: center;
         display: flex;
@@ -97,7 +98,7 @@ ensureUserResetSchema($conn);
     <div class="register-card">
 
         <div class="header-section">
-            <img src="upload/4.webp" alt="Logo">
+            <img src="upload/4.webp" alt="Logo" decoding="async">
             <h4 class="system-title">ระบบลงทะเบียน</h4>
         </div>
 

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../includes/applicant_notes.php';
+
 function handleStatusUpdate(
     PDO $conn,
     string $statusColumn,
@@ -47,6 +49,8 @@ function handleStatusUpdate(
     $editable = $editableNoteStatuses === null
         ? $required
         : array_values(array_filter(array_map('strval', $editableNoteStatuses)));
+    ensureApplicantNotesSchema($conn);
+    $stageKey = noteColumnToStageKey($noteColumn);
     $stageOrder = [
         'submit_doc',
         'lab_check',
@@ -103,13 +107,25 @@ function handleStatusUpdate(
 
         $stmt = $conn->prepare(
             "UPDATE applicantname
-             SET $statusColumn = :status,
-                 $noteColumn = :note
+             SET $statusColumn = :status
              WHERE id = :id"
+        );
+        $noteUpsertStmt = $conn->prepare(
+            'INSERT INTO applicant_notes (exam_year, applicant_id, stage_key, note)
+             VALUES (:exam_year, :applicant_id, :stage_key, :note)
+             ON DUPLICATE KEY UPDATE
+                note = VALUES(note),
+                updated_at = CURRENT_TIMESTAMP'
+        );
+        $noteDeleteStmt = $conn->prepare(
+            'DELETE FROM applicant_notes
+             WHERE exam_year = :exam_year
+               AND applicant_id = :applicant_id
+               AND stage_key = :stage_key'
         );
         $candidateIds = array_values(array_unique(array_column($candidates, 'id')));
         $guardPlaceholders = implode(',', array_fill(0, count($candidateIds), '?'));
-        $guardSql = 'SELECT id, ' . implode(', ', $stageOrder) . " FROM applicantname WHERE id IN ($guardPlaceholders)";
+        $guardSql = 'SELECT id, exam_year, ' . implode(', ', $stageOrder) . " FROM applicantname WHERE id IN ($guardPlaceholders)";
         $stageGuardStmt = $conn->prepare($guardSql);
         foreach ($candidateIds as $idx => $candidateId) {
             $stageGuardStmt->bindValue($idx + 1, $candidateId, PDO::PARAM_INT);
@@ -162,9 +178,26 @@ function handleStatusUpdate(
 
             $stmt->execute([
                 ':status' => $status,
-                ':note' => $note,
                 ':id' => $id,
             ]);
+
+            $examYear = trim((string) ($guardRow['exam_year'] ?? ''));
+            if ($examYear !== '') {
+                if ($note !== '') {
+                    $noteUpsertStmt->execute([
+                        ':exam_year' => $examYear,
+                        ':applicant_id' => (string) $id,
+                        ':stage_key' => $stageKey,
+                        ':note' => $note,
+                    ]);
+                } else {
+                    $noteDeleteStmt->execute([
+                        ':exam_year' => $examYear,
+                        ':applicant_id' => (string) $id,
+                        ':stage_key' => $stageKey,
+                    ]);
+                }
+            }
 
             $updated += $stmt->rowCount();
         }

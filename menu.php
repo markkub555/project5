@@ -29,6 +29,7 @@ $menus = [
     ['page' => 'import_gptV1.php', 'icon' => 'upload/import.png', 'title' => 'เพิ่ม/ดูข้อมูล นสต.'],
     ['page' => 'selected.php', 'icon' => 'upload/select.png', 'title' => 'ผู้ได้รับคัดเลือก'],
     ['page' => 'final.php', 'icon' => 'upload/final.png', 'title' => 'สรุปข้อมูลการสอบ นสต.'],
+    ['page' => 'export.php', 'icon' => 'upload/import.png', 'title' => 'นำข้อมูลออก'],
 
 ];
 
@@ -41,9 +42,7 @@ $h = static fn(string $value): string => htmlspecialchars($value, ENT_QUOTES, 'U
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>เมนูระบบ</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+            <link href="assets/css/local-fonts.css" rel="stylesheet">
     <link href="assets/css/menu.css" rel="stylesheet">
 </head>
 
@@ -51,7 +50,7 @@ $h = static fn(string $value): string => htmlspecialchars($value, ENT_QUOTES, 'U
     <header class="top-header">
         <div class="brand-wrap">
             <a href="menu.php" class="logo-link" aria-label="กลับหน้าเมนูหลัก">
-                <img src="upload/tcpr5-1024x990.png" class="logo" alt="ตราศูนย์ฝึกอบรมตำรวจภูธรภาค 5">
+                <img src="upload/tcpr5-1024x990.png" class="logo" alt="ตราศูนย์ฝึกอบรมตำรวจภูธรภาค 5" decoding="async">
             </a>
             <div>
                 <h1>ศูนย์ฝึกอบรมตำรวจภูธรภาค ๕</h1>
@@ -76,7 +75,7 @@ $h = static fn(string $value): string => htmlspecialchars($value, ENT_QUOTES, 'U
                     <a class="menu-item" href="<?= $h($menu['page']) ?>">
                         <div class="menu-card">
                             <div class="icon-wrap">
-                                <img src="<?= $h($menu['icon']) ?>" alt="<?= $h($menu['title']) ?>">
+                                <img src="<?= $h($menu['icon']) ?>" alt="<?= $h($menu['title']) ?>" loading="lazy" decoding="async">
                             </div>
                             <div class="menu-title"><?= $h($menu['title']) ?></div>
                         </div>

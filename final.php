@@ -123,11 +123,9 @@ usort($stageSummary, static function (array $a, array $b): int {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>สรุปข้อมูลการสอบ นสต.</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+                <link href="assets/vendor/bootstrap-5.3.2/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/local-fonts.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link href="assets/css/all-name.css?v=<?= $h($assetVersion) ?>" rel="stylesheet">
     <style>
         html,
@@ -422,6 +420,7 @@ usort($stageSummary, static function (array $a, array $b): int {
             <a class="menu-btn" href="Step.php">สรุปผลรายขั้นตอน</a>
             <a class="menu-btn" href="selected.php">ผู้ได้รับการคัดเลือก</a>
             <a class="menu-btn active" href="final.php">สรุปข้อมูลการสอบ นสต.</a>
+            <a class="menu-btn" href="export.php">นำข้อมูลออก</a>
         </aside>
 
         <main class="content">

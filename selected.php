@@ -9,7 +9,7 @@ if (!isset($_SESSION['user_login'])) {
     exit;
 }
 
-ensureApplicantSchema($conn);
+$applicantSchema = ensureApplicantSchema($conn);
 
 $userProfile = getCurrentUserProfile($conn);
 
@@ -96,7 +96,7 @@ $dataSql = "
     SELECT id, idcode, prefix, firstname, lastname, score
     FROM applicantname
     WHERE $whereSql
-    ORDER BY (score IS NULL OR score = '') ASC, CAST(score AS DECIMAL(10,2)) DESC, id_num ASC
+    ORDER BY (" . applicantScoreExpr($applicantSchema) . " IS NULL) ASC, " . applicantScoreExpr($applicantSchema) . " DESC, " . applicantOrderExpr($applicantSchema) . " ASC
     LIMIT :limit OFFSET :offset
 ";
 $dataStmt = $conn->prepare($dataSql);
@@ -130,11 +130,9 @@ if ($endPage - $startPage + 1 < $range) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>ผู้ได้รับการคัดเลือก</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+                <link href="assets/vendor/bootstrap-5.3.2/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/local-fonts.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link href="assets/css/all-name.css" rel="stylesheet">
 </head>
 
@@ -194,6 +192,7 @@ if ($endPage - $startPage + 1 < $range) {
             <a class="menu-btn" href="Step.php">สรุปผลรายขั้นตอน</a>
             <a class="menu-btn active" href="selected.php">ผู้ได้รับการคัดเลือก</a>
             <a class="menu-btn" href="final.php">สรุปข้อมูลการสอบ นสต.</a>
+            <a class="menu-btn" href="export.php">นำข้อมูลออก</a>
         </aside>
 
         <main class="content">
