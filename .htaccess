@@ -1,0 +1,16 @@
+RewriteEngine On
+
+RewriteRule ^src/ - [L]
+RewriteRule ^assets/ - [L]
+RewriteRule ^upload/ - [L]
+RewriteRule ^database/ - [L]
+RewriteRule ^docs/ - [L]
+RewriteRule ^scripts/ - [L]
+RewriteRule ^docker/ - [L]
+
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+RewriteRule ^$ src/login.php [L]
+RewriteRule ^(.+\.php)$ src/$1 [L,QSA]

@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'config/db.php';
+require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/user_profile.php';
 require_once __DIR__ . '/includes/ensure_applicant_schema.php';
 
@@ -31,24 +31,61 @@ $h = static function (string $value): string {
 };
 
 $examYear = (string) $_SESSION['exam_year'];
+$statusFilter = strtoupper(trim((string) ($_GET['status'] ?? '')));
 $search = trim((string) ($_GET['search'] ?? ''));
 if (mb_strlen($search) > 100) {
     $search = mb_substr($search, 0, 100);
 }
 
-$sessionKey = 'selected_count_' . $examYear;
-$selectedCount = null;
-if (isset($_GET['selected_count'])) {
-    $selectedCount = (int) $_GET['selected_count'];
-    if ($selectedCount < 0) {
-        $selectedCount = 0;
+$fields = [
+    'submit_doc',
+    'lab_check',
+    'swim_test',
+    'run_test',
+    'station3_test',
+    'hospital_check',
+    'fingerprint_check',
+    'background_check',
+    'interview',
+    'militarydoc',
+];
+
+$buildStatusCondition = static function (array $targetFields, string $type): string {
+    $allPass = implode(" = 'P' AND ", $targetFields) . " = 'P'";
+    $hasFail = implode(" = 'F' OR ", $targetFields) . " = 'F'";
+
+    if ($type === 'P') {
+        return "($allPass)";
     }
-    $_SESSION[$sessionKey] = $selectedCount;
-} elseif (isset($_SESSION[$sessionKey])) {
-    $selectedCount = (int) $_SESSION[$sessionKey];
-} else {
-    $selectedCount = 0;
-}
+
+    if ($type === 'F') {
+        return "($hasFail)";
+    }
+
+    if ($type === 'W') {
+        return "(NOT ($hasFail) AND NOT ($allPass))";
+    }
+
+    return '1=1';
+};
+
+$summarySql = "
+    SELECT
+        SUM(CASE WHEN " . $buildStatusCondition($fields, 'P') . " THEN 1 ELSE 0 END) AS total_pass,
+        SUM(CASE WHEN " . $buildStatusCondition($fields, 'F') . " THEN 1 ELSE 0 END) AS total_fail,
+        SUM(CASE WHEN " . $buildStatusCondition($fields, 'W') . " THEN 1 ELSE 0 END) AS total_wait
+    FROM applicantname
+    WHERE exam_year = :exam_year
+";
+$summaryStmt = $conn->prepare($summarySql);
+$summaryStmt->execute([':exam_year' => $examYear]);
+$summary = $summaryStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+$statusCount = [
+    'P' => (int) ($summary['total_pass'] ?? 0),
+    'F' => (int) ($summary['total_fail'] ?? 0),
+    'W' => (int) ($summary['total_wait'] ?? 0),
+];
 
 $limit = 20;
 $page = max(1, (int) ($_GET['page'] ?? 1));
@@ -57,20 +94,9 @@ $offset = ($page - 1) * $limit;
 $whereParts = ['exam_year = :exam_year'];
 $params = [':exam_year' => $examYear];
 
-$failCondition = implode(' OR ', [
-    "submit_doc = 'F'",
-    "lab_check = 'F'",
-    "swim_test = 'F'",
-    "run_test = 'F'",
-    "station3_test = 'F'",
-    "hospital_check = 'F'",
-    "fingerprint_check = 'F'",
-    "background_check = 'F'",
-    "interview = 'F'",
-    "militarydoc = 'F'",
-]);
-
-$whereParts[] = "NOT ($failCondition)";
+if (in_array($statusFilter, ['P', 'F', 'W'], true)) {
+    $whereParts[] = $buildStatusCondition($fields, $statusFilter);
+}
 
 if ($search !== '') {
     $whereParts[] = '(idcode LIKE :search OR firstname LIKE :search OR lastname LIKE :search)';
@@ -93,10 +119,13 @@ if ($page > $totalPages) {
 }
 
 $dataSql = "
-    SELECT id, idcode, prefix, firstname, lastname, score
+    SELECT id, idcode, prefix, firstname, lastname,
+           submit_doc, lab_check, swim_test, run_test, station3_test,
+           hospital_check, fingerprint_check, background_check, interview, militarydoc,
+           " . applicantOrderExpr($applicantSchema) . " AS global_order_no
     FROM applicantname
     WHERE $whereSql
-    ORDER BY (" . applicantScoreExpr($applicantSchema) . " IS NULL) ASC, " . applicantScoreExpr($applicantSchema) . " DESC, " . applicantOrderExpr($applicantSchema) . " ASC
+    ORDER BY " . applicantOrderExpr($applicantSchema) . " ASC
     LIMIT :limit OFFSET :offset
 ";
 $dataStmt = $conn->prepare($dataSql);
@@ -109,11 +138,11 @@ $dataStmt->execute();
 $rows = $dataStmt->fetchAll(PDO::FETCH_ASSOC);
 
 $baseQuery = ['exam_year' => $examYear];
+if (in_array($statusFilter, ['P', 'F', 'W'], true)) {
+    $baseQuery['status'] = $statusFilter;
+}
 if ($search !== '') {
     $baseQuery['search'] = $search;
-}
-if ($selectedCount > 0) {
-    $baseQuery['selected_count'] = $selectedCount;
 }
 
 $range = 5;
@@ -122,6 +151,20 @@ $endPage = min($totalPages, $startPage + $range - 1);
 if ($endPage - $startPage + 1 < $range) {
     $startPage = max(1, $endPage - $range + 1);
 }
+
+$statusText = ['W' => 'รอดำเนินการ', 'P' => 'ผ่าน', 'F' => 'ไม่ผ่าน'];
+$columns = [
+    'submit_doc' => 'ยื่นเอกสาร',
+    'lab_check' => 'LAB',
+    'swim_test' => 'ว่ายน้ำ',
+    'run_test' => 'วิ่ง',
+    'station3_test' => '3 สถานี',
+    'hospital_check' => 'รพ.ตร.',
+    'fingerprint_check' => 'ลายนิ้วมือ',
+    'background_check' => 'ประวัติทางคดี',
+    'interview' => 'สัมภาษณ์',
+    'militarydoc' => 'เอกสารทหาร',
+];
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -129,11 +172,34 @@ if ($endPage - $startPage + 1 < $range) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ผู้ได้รับการคัดเลือก</title>
+    <title>สรุปผลรายขั้นตอน</title>
                 <link href="assets/vendor/bootstrap-5.3.2/bootstrap.min.css" rel="stylesheet">
     <link href="assets/css/local-fonts.css" rel="stylesheet">
     <link href="assets/vendor/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link href="assets/css/all-name.css" rel="stylesheet">
+    <style>
+        .step-status-W {
+            background: #e5e7eb;
+        }
+
+        .step-status-P {
+            background: #dcfce7;
+        }
+
+        .step-status-F {
+            background: #fee2e2;
+        }
+
+        .summary-table-wrap {
+            margin-top: 12px;
+            overflow: auto;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: var(--panel);
+            flex: 1;
+            min-height: 0;
+        }
+    </style>
 </head>
 
 <body>
@@ -152,7 +218,7 @@ if ($endPage - $startPage + 1 < $range) {
                 <i class="bi bi-house-door-fill" style="color:#fff;"></i>
             </a>
             <div class="header-meta">
-                <strong>ผู้ได้รับการคัดเลือก</strong>
+                <strong>สรุปผลรายขั้นตอน</strong>
                 <span>ปีที่ใช้งาน: <?= $h($examYear) ?></span>
             </div>
             <div class="profile-menu">
@@ -189,8 +255,8 @@ if ($endPage - $startPage + 1 < $range) {
             <a class="menu-btn" href="background_check.php">ตรวจประวัติทางคดี</a>
             <a class="menu-btn" href="interview.php">สัมภาษณ์</a>
             <a class="menu-btn" href="militarydoc.php">เอกสารทางทหาร</a>
-            <a class="menu-btn" href="Step.php">สรุปผลรายขั้นตอน</a>
-            <a class="menu-btn active" href="selected.php">ผู้ได้รับการคัดเลือก</a>
+            <a class="menu-btn active" href="Step.php">สรุปผลรายขั้นตอน</a>
+            <a class="menu-btn" href="selected.php">ผู้ได้รับการคัดเลือก</a>
             <a class="menu-btn" href="final.php">สรุปข้อมูลการสอบ นสต.</a>
             <a class="menu-btn" href="export.php">นำข้อมูลออก</a>
         </aside>
@@ -199,49 +265,64 @@ if ($endPage - $startPage + 1 < $range) {
             <div class="toolbar">
                 <form method="GET" class="search-box">
                     <input type="hidden" name="exam_year" value="<?= $h($examYear) ?>">
-                    <?php if ($selectedCount > 0): ?>
-                        <input type="hidden" name="selected_count" value="<?= (int) $selectedCount ?>">
+                    <?php if (in_array($statusFilter, ['P', 'F', 'W'], true)): ?>
+                        <input type="hidden" name="status" value="<?= $h($statusFilter) ?>">
                     <?php endif; ?>
                     <i class="bi bi-search"></i>
                     <input type="text" name="search" value="<?= $h($search) ?>" placeholder="ค้นหาเลขสอบ / ชื่อ / นามสกุล">
                     <button type="submit" class="btn btn-sm btn-danger">ค้นหา</button>
                 </form>
-                <form method="GET" class="search-box">
-                    <input type="hidden" name="exam_year" value="<?= $h($examYear) ?>">
-                    <?php if ($search !== ''): ?>
-                        <input type="hidden" name="search" value="<?= $h($search) ?>">
-                    <?php endif; ?>
-                    <i class="bi bi-people-fill"></i>
-                    <input type="number" min="0" name="selected_count" value="<?= $selectedCount > 0 ? (int) $selectedCount : '' ?>" placeholder="จำนวนผู้ได้รับการคัดเลือก">
-                    <button type="submit" class="btn btn-sm btn-danger">ตั้งค่า</button>
-                </form>
             </div>
 
-            <div class="table-wrap">
+            <div class="status-bar">
+                <a class="badge text-bg-dark" href="?<?= http_build_query(array_filter(['exam_year' => $examYear, 'search' => $search])) ?>">แสดงทั้งหมด</a>
+                <a class="badge text-bg-secondary" href="?<?= http_build_query(array_filter(['exam_year' => $examYear, 'search' => $search, 'status' => 'W'])) ?>">รอดำเนินการ <?= $statusCount['W'] ?></a>
+                <a class="badge text-bg-success" href="?<?= http_build_query(array_filter(['exam_year' => $examYear, 'search' => $search, 'status' => 'P'])) ?>">ผ่าน <?= $statusCount['P'] ?></a>
+                <a class="badge text-bg-danger" href="?<?= http_build_query(array_filter(['exam_year' => $examYear, 'search' => $search, 'status' => 'F'])) ?>">ไม่ผ่าน <?= $statusCount['F'] ?></a>
+            </div>
+
+            <div class="summary-table-wrap">
                 <table>
                     <thead>
                         <tr>
                             <th>ลำดับ</th>
                             <th>เลขสอบ</th>
                             <th>ชื่อ-สกุล</th>
-                            <th>คะแนน</th>
-                            <th>สถานะ</th>
+                            <?php foreach ($columns as $label): ?>
+                                <th><?= $h($label) ?></th>
+                            <?php endforeach; ?>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (!$rows): ?>
                             <tr>
-                                <td colspan="5" class="empty-row">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td>
+                                <td colspan="13" class="empty-row">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td>
                             </tr>
                         <?php endif; ?>
                         <?php foreach ($rows as $index => $row): ?>
-                            <?php $rank = $offset + $index + 1; ?>
+                            <?php
+                            $columnKeys = array_keys($columns);
+                            $firstFailIndex = null;
+                            foreach ($columnKeys as $colIndex => $field) {
+                                $rawStatus = strtoupper(trim((string) ($row[$field] ?? 'W')));
+                                if ($rawStatus === 'F') {
+                                    $firstFailIndex = $colIndex;
+                                    break;
+                                }
+                            }
+                            ?>
                             <tr>
-                                <td><?= $rank ?></td>
+                                <td><?= (int) ($row['global_order_no'] ?? ($offset + $index + 1)) ?></td>
                                 <td><?= $h((string) $row['idcode']) ?></td>
-                                <td class="name-cell" style="text-align:left;padding-left:14px;"><?= $h(trim(($row['prefix'] ?? '') . ($row['firstname'] ?? '') . ' ' . ($row['lastname'] ?? ''))) ?></td>
-                                <td><?= $row['score'] === null || $row['score'] === '' ? '-' : $h((string) $row['score']) ?></td>
-                                <td><?= $selectedCount > 0 && $rank <= $selectedCount ? 'ผู้ได้รับการคัดเลือก' : 'สำรอง' ?></td>
+                                <td><?= $h(trim(($row['prefix'] ?? '') . ($row['firstname'] ?? '') . ' ' . ($row['lastname'] ?? ''))) ?></td>
+                                <?php foreach ($columnKeys as $colIndex => $field): ?>
+                                    <?php
+                                    $rawStatus = strtoupper(trim((string) ($row[$field] ?? 'W')));
+                                    $status = in_array($rawStatus, ['W', 'P', 'F'], true) ? $rawStatus : 'W';
+                                    $isAfterFail = $firstFailIndex !== null && $colIndex > $firstFailIndex;
+                                    ?>
+                                    <td class="step-status-<?= $h($isAfterFail ? 'W' : $status) ?>"><?= $isAfterFail ? '-' : $h($statusText[$status]) ?></td>
+                                <?php endforeach; ?>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -254,13 +335,11 @@ if ($endPage - $startPage + 1 < $range) {
                     <a href="?<?= http_build_query(array_merge($baseQuery, ['page' => max(1, $page - 1)])) ?>">
                         <button <?= $page <= 1 ? 'disabled' : '' ?>>◀</button>
                     </a>
-
                     <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
                         <a href="?<?= http_build_query(array_merge($baseQuery, ['page' => $i])) ?>">
                             <button class="<?= $i === $page ? 'active-page' : '' ?>"><?= $i ?></button>
                         </a>
                     <?php endfor; ?>
-
                     <a href="?<?= http_build_query(array_merge($baseQuery, ['page' => min($totalPages, $page + 1)])) ?>">
                         <button <?= $page >= $totalPages ? 'disabled' : '' ?>>▶</button>
                     </a>
