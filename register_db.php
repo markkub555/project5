@@ -66,8 +66,8 @@ if (isset($_POST['register'])) {
 
         // บันทึกข้อมูล
         $sql = "INSERT INTO users 
-                (position, idnumber, firstname, lastname, username, email, number, password) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                (position, idnumber, firstname, lastname, username, email, number, password, userstatus) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         $stmt = $conn->prepare($sql);
         $stmt->execute([
@@ -78,7 +78,8 @@ if (isset($_POST['register'])) {
             $username,
             $email,
             $number,
-            $hashed_password
+            $hashed_password,
+            'W'
         ]);
 
         $_SESSION['success'] = "สมัครสมาชิกเรียบร้อยแล้ว กรุณาเข้าสู่ระบบ";

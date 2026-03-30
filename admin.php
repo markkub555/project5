@@ -20,6 +20,11 @@ $h = static function (string $value): string {
     return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 };
 
+$view = (string) ($_GET['view'] ?? 'users');
+if (!in_array($view, ['users', 'pending'], true)) {
+    $view = 'users';
+}
+
 $adminId = (int) $_SESSION['admin_login'];
 $stmt = $conn->prepare('SELECT * FROM users WHERE id = :id LIMIT 1');
 $stmt->execute([':id' => $adminId]);
@@ -35,15 +40,22 @@ $formData = [
     'email' => '',
     'number' => '',
 ];
+$statusFormData = [
+    'id' => 0,
+    'fullname' => '',
+    'username' => '',
+    'userstatus' => 'W',
+];
 $formError = '';
 $formSuccess = '';
 $isEditOpen = false;
+$isStatusOpen = false;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'update_user') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $postedToken = (string) ($_POST['csrf_token'] ?? '');
     if ($postedToken === '' || !hash_equals($csrfToken, $postedToken)) {
         $formError = 'การยืนยันไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง';
-    } else {
+    } elseif (($_POST['action'] ?? '') === 'update_user') {
         $formData = [
             'id' => (int) ($_POST['user_id'] ?? 0),
             'position' => trim((string) ($_POST['position'] ?? '')),
@@ -110,9 +122,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'updat
                 ]);
 
                 $_SESSION['admin_success'] = 'แก้ไขข้อมูลผู้ใช้เรียบร้อย';
-                header('Location: admin.php');
+                header('Location: admin.php?view=users');
                 exit;
             }
+        }
+    } elseif (($_POST['action'] ?? '') === 'update_user_status') {
+        $statusFormData = [
+            'id' => (int) ($_POST['status_user_id'] ?? 0),
+            'fullname' => trim((string) ($_POST['status_fullname'] ?? '')),
+            'username' => trim((string) ($_POST['status_username'] ?? '')),
+            'userstatus' => strtoupper(trim((string) ($_POST['userstatus'] ?? 'W'))),
+        ];
+        $isStatusOpen = true;
+
+        if ($statusFormData['id'] <= 0) {
+            $formError = 'ไม่พบข้อมูลผู้ใช้ที่ต้องการอัปเดตสถานะ';
+        } elseif (!in_array($statusFormData['userstatus'], ['W', 'P', 'F'], true)) {
+            $formError = 'สถานะที่เลือกไม่ถูกต้อง';
+        } else {
+            $statusStmt = $conn->prepare('UPDATE users SET userstatus = :userstatus WHERE id = :id');
+            $statusStmt->execute([
+                ':userstatus' => $statusFormData['userstatus'],
+                ':id' => $statusFormData['id'],
+            ]);
+
+            $_SESSION['admin_success'] = 'อัปเดตสถานะการเข้าใช้งานเรียบร้อย';
+            header('Location: admin.php?view=pending');
+            exit;
         }
     }
 }
@@ -122,9 +158,18 @@ if (isset($_SESSION['admin_success'])) {
     unset($_SESSION['admin_success']);
 }
 
-$listStmt = $conn->query('SELECT id, position, idnumber, firstname, lastname, username, email, number FROM users ORDER BY id');
+$listStmt = $conn->query("SELECT id, position, idnumber, firstname, lastname, username, email, number, COALESCE(NULLIF(TRIM(userstatus), ''), 'P') AS userstatus FROM users ORDER BY id");
 $users = $listStmt->fetchAll(PDO::FETCH_ASSOC);
 $totalUsers = count($users);
+
+$pendingStmt = $conn->query("SELECT id, position, idnumber, firstname, lastname, username, email, number, COALESCE(NULLIF(TRIM(userstatus), ''), 'P') AS userstatus FROM users WHERE COALESCE(NULLIF(TRIM(userstatus), ''), 'P') = 'W' ORDER BY id DESC");
+$pendingUsers = $pendingStmt->fetchAll(PDO::FETCH_ASSOC);
+$totalPendingUsers = count($pendingUsers);
+
+$pageTitle = $view === 'pending' ? 'ยืนยันสิทธิ์การเข้าใช้' : 'ผู้เข้าใช้ระบบ';
+$pageSubtitle = $view === 'pending'
+    ? 'รอการอนุมัติ ' . number_format($totalPendingUsers) . ' รายการ'
+    : 'ทั้งหมด ' . number_format($totalUsers) . ' รายการ';
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -132,7 +177,7 @@ $totalUsers = count($users);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ผู้เข้าใช้ระบบ</title>
+    <title><?= $h($pageTitle) ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -174,7 +219,8 @@ $totalUsers = count($users);
             color: var(--muted);
         }
 
-        .admin-edit-btn {
+        .admin-edit-btn,
+        .admin-status-btn {
             border: none;
             border-radius: 999px;
             padding: 6px 12px;
@@ -185,7 +231,13 @@ $totalUsers = count($users);
             cursor: pointer;
         }
 
-        .admin-edit-btn:hover {
+        .admin-status-btn {
+            background: #bfdbfe;
+            color: #1e3a8a;
+        }
+
+        .admin-edit-btn:hover,
+        .admin-status-btn:hover {
             filter: brightness(0.96);
         }
 
@@ -212,6 +264,10 @@ $totalUsers = count($users);
             border-radius: 18px;
             box-shadow: 0 20px 48px rgba(15, 23, 42, 0.24);
             padding: 18px;
+        }
+
+        .admin-status-modal-box {
+            width: min(480px, 100%);
         }
 
         .admin-modal-head {
@@ -254,14 +310,16 @@ $totalUsers = count($users);
             color: #374151;
         }
 
-        .admin-form-group input {
+        .admin-form-group input,
+        .admin-form-group select {
             border: 1px solid var(--line);
             border-radius: 10px;
             padding: 10px 12px;
             font-size: 0.86rem;
         }
 
-        .admin-form-group input:focus {
+        .admin-form-group input:focus,
+        .admin-form-group select:focus {
             outline: 2px solid #fecaca;
             border-color: #fca5a5;
         }
@@ -295,6 +353,38 @@ $totalUsers = count($users);
             cursor: pointer;
         }
 
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 74px;
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .status-pill-W {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .status-pill-P {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-pill-F {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-user-meta {
+            margin: 0 0 12px;
+            color: #6b7280;
+            font-size: 0.84rem;
+        }
+
         @media (max-width: 720px) {
             .admin-form-grid {
                 grid-template-columns: 1fr;
@@ -319,13 +409,13 @@ $totalUsers = count($users);
                 <i class="bi bi-house-door-fill" style="color:#fff;"></i>
             </a>
             <div class="header-meta">
-                <strong>ผู้เข้าใช้ระบบ</strong>
-                <span>ทั้งหมด <?= number_format($totalUsers) ?> รายการ</span>
+                <strong><?= $h($pageTitle) ?></strong>
+                <span><?= $h($pageSubtitle) ?></span>
             </div>
             <div class="profile-menu">
                 <button id="profileTrigger" type="button" class="profile-trigger">
                     <i class="bi bi-person-circle"></i>
-                    <span><?= $h($adminRow['firstname']) ?></span>
+                    <span><?= $h((string) ($adminRow['firstname'] ?? '')) ?></span>
                     <i class="bi bi-caret-down-fill"></i>
                 </button>
                 <div id="profileCard" class="profile-card">
@@ -345,7 +435,8 @@ $totalUsers = count($users);
     <div class="layout">
         <aside class="sidebar">
             <div class="menu-title">เมนู</div>
-            <a class="menu-btn active" href="admin.php">รายชื่อผู้เข้าใช้</a>
+            <a class="menu-btn<?= $view === 'users' ? ' active' : '' ?>" href="admin.php?view=users">รายชื่อผู้เข้าใช้</a>
+            <a class="menu-btn<?= $view === 'pending' ? ' active' : '' ?>" href="admin.php?view=pending">ยืนยันสิทธิ์การเข้าใช้</a>
         </aside>
 
         <main class="content">
@@ -356,62 +447,126 @@ $totalUsers = count($users);
                 <div class="admin-alert error"><?= $h($formError) ?></div>
             <?php endif; ?>
 
-            <div class="admin-toolbar">
-                <div class="admin-summary">จัดการข้อมูลผู้ใช้งานที่อยู่ในระบบจากหน้าเดียว</div>
-            </div>
+            <?php if ($view === 'pending'): ?>
+                <div class="admin-toolbar">
+                    <div class="admin-summary">รายการผู้สมัครใหม่ที่ยังรอการยืนยันสิทธิ์เข้าใช้งานจากผู้ดูแลระบบ</div>
+                </div>
 
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ลำดับ</th>
-                            <th>ชื่อผู้ใช้</th>
-                            <th>ชื่อ-สกุล</th>
-                            <th>ตำแหน่ง</th>
-                            <th>เลขบัตรประชาชน</th>
-                            <th>อีเมล</th>
-                            <th>เบอร์โทร</th>
-                            <th>แก้ไข</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (!$users): ?>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
                             <tr>
-                                <td colspan="8" class="empty-row">ไม่พบข้อมูลผู้เข้าใช้</td>
+                                <th>ลำดับ</th>
+                                <th>ชื่อผู้ใช้</th>
+                                <th>ชื่อ-สกุล</th>
+                                <th>ตำแหน่ง</th>
+                                <th>อีเมล</th>
+                                <th>เบอร์โทร</th>
+                                <th>สถานะ</th>
+                                <th>แก้ไขสถานะ</th>
                             </tr>
-                        <?php endif; ?>
-                        <?php foreach ($users as $index => $user): ?>
+                        </thead>
+                        <tbody>
+                            <?php if (!$pendingUsers): ?>
+                                <tr>
+                                    <td colspan="8" class="empty-row">ไม่มีรายการที่รอการยืนยันสิทธิ์</td>
+                                </tr>
+                            <?php endif; ?>
+                            <?php foreach ($pendingUsers as $index => $user): ?>
+                                <?php $fullName = trim(($user['firstname'] ?? '') . ' ' . ($user['lastname'] ?? '')); ?>
+                                <tr>
+                                    <td><?= $index + 1 ?></td>
+                                    <td><?= $h((string) $user['username']) ?></td>
+                                    <td class="name-cell" style="text-align:left;padding-left:14px;"><?= $h($fullName) ?></td>
+                                    <td><?= $h((string) $user['position']) ?></td>
+                                    <td><?= $h((string) ($user['email'] ?? '')) ?></td>
+                                    <td><?= $h((string) $user['number']) ?></td>
+                                    <td><span class="status-pill status-pill-W">รอยืนยัน</span></td>
+                                    <td>
+                                        <button
+                                            type="button"
+                                            class="admin-status-btn"
+                                            data-id="<?= (int) $user['id'] ?>"
+                                            data-fullname="<?= $h($fullName) ?>"
+                                            data-username="<?= $h((string) $user['username']) ?>"
+                                            data-userstatus="<?= $h((string) $user['userstatus']) ?>"
+                                        >
+                                            แก้ไขสถานะ
+                                        </button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php else: ?>
+                <div class="admin-toolbar">
+                    <div class="admin-summary">จัดการข้อมูลผู้ใช้งานที่อยู่ในระบบจากหน้าเดียว</div>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
                             <tr>
-                                <td><?= $index + 1 ?></td>
-                                <td><?= $h((string) $user['username']) ?></td>
-                                <td class="name-cell" style="text-align:left;padding-left:14px;">
-                                    <?= $h(trim(($user['firstname'] ?? '') . ' ' . ($user['lastname'] ?? ''))) ?>
-                                </td>
-                                <td><?= $h((string) $user['position']) ?></td>
-                                <td><?= $h((string) $user['idnumber']) ?></td>
-                                <td><?= $h((string) ($user['email'] ?? '')) ?></td>
-                                <td><?= $h((string) $user['number']) ?></td>
-                                <td>
-                                    <button
-                                        type="button"
-                                        class="admin-edit-btn"
-                                        data-id="<?= (int) $user['id'] ?>"
-                                        data-position="<?= $h((string) $user['position']) ?>"
-                                        data-idnumber="<?= $h((string) $user['idnumber']) ?>"
-                                        data-firstname="<?= $h((string) $user['firstname']) ?>"
-                                        data-lastname="<?= $h((string) $user['lastname']) ?>"
-                                        data-username="<?= $h((string) $user['username']) ?>"
-                                        data-email="<?= $h((string) ($user['email'] ?? '')) ?>"
-                                        data-number="<?= $h((string) $user['number']) ?>"
-                                    >
-                                        แก้ไข
-                                    </button>
-                                </td>
+                                <th>ลำดับ</th>
+                                <th>ชื่อผู้ใช้</th>
+                                <th>ชื่อ-สกุล</th>
+                                <th>ตำแหน่ง</th>
+                                <th>เลขบัตรประชาชน</th>
+                                <th>อีเมล</th>
+                                <th>เบอร์โทร</th>
+                                <th>สถานะ</th>
+                                <th>แก้ไข</th>
                             </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                            <?php if (!$users): ?>
+                                <tr>
+                                    <td colspan="9" class="empty-row">ไม่พบข้อมูลผู้เข้าใช้</td>
+                                </tr>
+                            <?php endif; ?>
+                            <?php foreach ($users as $index => $user): ?>
+                                <?php
+                                $userStatus = strtoupper(trim((string) ($user['userstatus'] ?? 'P')));
+                                if (!in_array($userStatus, ['W', 'P', 'F'], true)) {
+                                    $userStatus = 'P';
+                                }
+                                $statusLabel = $userStatus === 'W' ? 'รอยืนยัน' : ($userStatus === 'F' ? 'ไม่อนุมัติ' : 'อนุมัติแล้ว');
+                                $statusClass = 'status-pill-' . $userStatus;
+                                ?>
+                                <tr>
+                                    <td><?= $index + 1 ?></td>
+                                    <td><?= $h((string) $user['username']) ?></td>
+                                    <td class="name-cell" style="text-align:left;padding-left:14px;">
+                                        <?= $h(trim(($user['firstname'] ?? '') . ' ' . ($user['lastname'] ?? ''))) ?>
+                                    </td>
+                                    <td><?= $h((string) $user['position']) ?></td>
+                                    <td><?= $h((string) $user['idnumber']) ?></td>
+                                    <td><?= $h((string) ($user['email'] ?? '')) ?></td>
+                                    <td><?= $h((string) $user['number']) ?></td>
+                                    <td><span class="status-pill <?= $h($statusClass) ?>"><?= $h($statusLabel) ?></span></td>
+                                    <td>
+                                        <button
+                                            type="button"
+                                            class="admin-edit-btn"
+                                            data-id="<?= (int) $user['id'] ?>"
+                                            data-position="<?= $h((string) $user['position']) ?>"
+                                            data-idnumber="<?= $h((string) $user['idnumber']) ?>"
+                                            data-firstname="<?= $h((string) $user['firstname']) ?>"
+                                            data-lastname="<?= $h((string) $user['lastname']) ?>"
+                                            data-username="<?= $h((string) $user['username']) ?>"
+                                            data-email="<?= $h((string) ($user['email'] ?? '')) ?>"
+                                            data-number="<?= $h((string) $user['number']) ?>"
+                                        >
+                                            แก้ไข
+                                        </button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
         </main>
     </div>
 
@@ -466,12 +621,51 @@ $totalUsers = count($users);
         </div>
     </div>
 
+    <div id="statusModal" class="admin-modal<?= $isStatusOpen ? ' open' : '' ?>">
+        <div class="admin-modal-box admin-status-modal-box">
+            <div class="admin-modal-head">
+                <h3>แก้ไขสถานะการเข้าใช้</h3>
+                <button type="button" id="closeStatusModal" class="admin-close-btn" aria-label="ปิด">&times;</button>
+            </div>
+
+            <form method="post">
+                <input type="hidden" name="action" value="update_user_status">
+                <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+                <input type="hidden" id="status_user_id" name="status_user_id" value="<?= (int) $statusFormData['id'] ?>">
+                <input type="hidden" id="status_fullname" name="status_fullname" value="<?= $h($statusFormData['fullname']) ?>">
+                <input type="hidden" id="status_username" name="status_username" value="<?= $h($statusFormData['username']) ?>">
+
+                <p class="status-user-meta">
+                    ผู้ใช้: <strong id="statusUserNameLabel"><?= $h($statusFormData['fullname']) ?></strong>
+                    <span id="statusUsernameLabel"><?= $statusFormData['username'] !== '' ? '(' . $h($statusFormData['username']) . ')' : '' ?></span>
+                </p>
+
+                <div class="admin-form-group">
+                    <label for="userstatus">สถานะการเข้าใช้</label>
+                    <select id="userstatus" name="userstatus" required>
+                        <option value="W"<?= $statusFormData['userstatus'] === 'W' ? ' selected' : '' ?>>รอยืนยัน</option>
+                        <option value="P"<?= $statusFormData['userstatus'] === 'P' ? ' selected' : '' ?>>อนุมัติให้เข้าใช้</option>
+                        <option value="F"<?= $statusFormData['userstatus'] === 'F' ? ' selected' : '' ?>>ไม่อนุมัติ</option>
+                    </select>
+                </div>
+
+                <div class="admin-form-actions">
+                    <button type="submit" class="admin-save-btn">บันทึกสถานะ</button>
+                    <button type="button" id="cancelStatusModal" class="admin-cancel-btn">ยกเลิก</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         const profileTrigger = document.getElementById('profileTrigger');
         const profileCard = document.getElementById('profileCard');
         const adminModal = document.getElementById('adminModal');
+        const statusModal = document.getElementById('statusModal');
         const closeAdminModal = document.getElementById('closeAdminModal');
         const cancelAdminModal = document.getElementById('cancelAdminModal');
+        const closeStatusModal = document.getElementById('closeStatusModal');
+        const cancelStatusModal = document.getElementById('cancelStatusModal');
 
         const formFields = {
             id: document.getElementById('user_id'),
@@ -482,6 +676,15 @@ $totalUsers = count($users);
             username: document.getElementById('username'),
             email: document.getElementById('email'),
             number: document.getElementById('number'),
+        };
+
+        const statusFields = {
+            id: document.getElementById('status_user_id'),
+            fullname: document.getElementById('status_fullname'),
+            username: document.getElementById('status_username'),
+            userstatus: document.getElementById('userstatus'),
+            fullNameLabel: document.getElementById('statusUserNameLabel'),
+            usernameLabel: document.getElementById('statusUsernameLabel'),
         };
 
         profileTrigger.addEventListener('click', function(event) {
@@ -507,8 +710,20 @@ $totalUsers = count($users);
             adminModal.classList.add('open');
         }
 
-        function closeModal() {
-            adminModal.classList.remove('open');
+        function openStatusModal(button) {
+            const fullName = button.dataset.fullname || '';
+            const username = button.dataset.username || '';
+            statusFields.id.value = button.dataset.id || '';
+            statusFields.fullname.value = fullName;
+            statusFields.username.value = username;
+            statusFields.userstatus.value = button.dataset.userstatus || 'W';
+            statusFields.fullNameLabel.textContent = fullName;
+            statusFields.usernameLabel.textContent = username ? '(' + username + ')' : '';
+            statusModal.classList.add('open');
+        }
+
+        function closeModal(modal) {
+            modal.classList.remove('open');
         }
 
         document.querySelectorAll('.admin-edit-btn').forEach((button) => {
@@ -517,12 +732,42 @@ $totalUsers = count($users);
             });
         });
 
-        closeAdminModal.addEventListener('click', closeModal);
-        cancelAdminModal.addEventListener('click', closeModal);
+        document.querySelectorAll('.admin-status-btn').forEach((button) => {
+            button.addEventListener('click', function() {
+                openStatusModal(this);
+            });
+        });
+
+        if (closeAdminModal) {
+            closeAdminModal.addEventListener('click', function() {
+                closeModal(adminModal);
+            });
+        }
+        if (cancelAdminModal) {
+            cancelAdminModal.addEventListener('click', function() {
+                closeModal(adminModal);
+            });
+        }
+        if (closeStatusModal) {
+            closeStatusModal.addEventListener('click', function() {
+                closeModal(statusModal);
+            });
+        }
+        if (cancelStatusModal) {
+            cancelStatusModal.addEventListener('click', function() {
+                closeModal(statusModal);
+            });
+        }
 
         adminModal.addEventListener('click', function(event) {
             if (event.target === adminModal) {
-                closeModal();
+                closeModal(adminModal);
+            }
+        });
+
+        statusModal.addEventListener('click', function(event) {
+            if (event.target === statusModal) {
+                closeModal(statusModal);
             }
         });
     </script>

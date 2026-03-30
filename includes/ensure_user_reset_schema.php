@@ -55,6 +55,9 @@ function ensureUserResetSchema(PDO $conn): void
         if (!$hasColumn('code')) {
             $conn->exec('ALTER TABLE users ADD COLUMN code VARCHAR(255) NULL AFTER expire');
         }
+        if (!$hasColumn('userstatus')) {
+            $conn->exec("ALTER TABLE users ADD COLUMN userstatus VARCHAR(1) NULL AFTER code");
+        }
 
         if (!$hasIndex('idx_users_email')) {
             $conn->exec('CREATE INDEX idx_users_email ON users (email)');
@@ -62,6 +65,11 @@ function ensureUserResetSchema(PDO $conn): void
         if (!$hasIndex('idx_users_token')) {
             $conn->exec('CREATE INDEX idx_users_token ON users (token)');
         }
+        if (!$hasIndex('idx_users_userstatus')) {
+            $conn->exec('CREATE INDEX idx_users_userstatus ON users (userstatus)');
+        }
+
+        $conn->exec("UPDATE users SET userstatus = 'P' WHERE userstatus IS NULL OR TRIM(userstatus) = ''");
     } catch (Throwable $e) {
         return;
     }

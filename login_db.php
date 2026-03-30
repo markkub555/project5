@@ -2,6 +2,9 @@
 
 session_start();
 require_once 'config/db.php';
+require_once __DIR__ . '/includes/ensure_user_reset_schema.php';
+
+ensureUserResetSchema($conn);
 
 if (isset($_POST['login'])) {
 
@@ -41,6 +44,19 @@ if (isset($_POST['login'])) {
                     header("location: admin.php");
                     exit();
                 } else {
+                    $userStatus = strtoupper(trim((string) ($row['userstatus'] ?? '')));
+                    if ($userStatus === 'W') {
+                        $_SESSION['error'] = 'บัญชีของคุณกำลังรอการยืนยันสิทธิ์เข้าใช้งาน';
+                        header("location: login.php");
+                        exit();
+                    }
+
+                    if ($userStatus === 'F') {
+                        $_SESSION['error'] = 'บัญชีของคุณไม่ได้รับสิทธิ์เข้าใช้งาน กรุณาติดต่อผู้ดูแลระบบ';
+                        header("location: login.php");
+                        exit();
+                    }
+
                     $_SESSION['user_login'] = $row['id'];
                     header("location: import_gptv1.php");
                     exit();
