@@ -21,7 +21,7 @@ $h = static function (string $value): string {
 };
 
 $view = (string) ($_GET['view'] ?? 'users');
-if (!in_array($view, ['users', 'pending'], true)) {
+if (!in_array($view, ['users', 'pending', 'delete_year'], true)) {
     $view = 'users';
 }
 
@@ -150,6 +150,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: admin.php?view=pending');
             exit;
         }
+    } elseif (($_POST['action'] ?? '') === 'delete_exam_year') {
+        $deleteExamYear = trim((string) ($_POST['exam_year'] ?? ''));
+
+        if ($deleteExamYear === '') {
+            $formError = 'ไม่พบปี นสต. ที่ต้องการลบ';
+        } else {
+            $countYearStmt = $conn->prepare('SELECT COUNT(*) FROM applicantname WHERE exam_year = :exam_year');
+            $countYearStmt->execute([':exam_year' => $deleteExamYear]);
+            $rowCount = (int) $countYearStmt->fetchColumn();
+
+            if ($rowCount <= 0) {
+                $formError = 'ไม่พบข้อมูลของปี นสต. ที่เลือก';
+            } else {
+                $deleteYearStmt = $conn->prepare('DELETE FROM applicantname WHERE exam_year = :exam_year');
+                $deleteYearStmt->execute([':exam_year' => $deleteExamYear]);
+
+                if (isset($_SESSION['exam_year']) && (string) $_SESSION['exam_year'] === $deleteExamYear) {
+                    unset($_SESSION['exam_year']);
+                }
+
+                $_SESSION['admin_success'] = "ลบข้อมูล นสต.รุ่นที่ {$deleteExamYear} เรียบร้อย ({$rowCount} รายการ)";
+                header('Location: admin.php?view=delete_year');
+                exit;
+            }
+        }
     }
 }
 
@@ -166,10 +191,26 @@ $pendingStmt = $conn->query("SELECT id, position, idnumber, firstname, lastname,
 $pendingUsers = $pendingStmt->fetchAll(PDO::FETCH_ASSOC);
 $totalPendingUsers = count($pendingUsers);
 
-$pageTitle = $view === 'pending' ? 'ยืนยันสิทธิ์การเข้าใช้' : 'ผู้เข้าใช้ระบบ';
-$pageSubtitle = $view === 'pending'
-    ? 'รอการอนุมัติ ' . number_format($totalPendingUsers) . ' รายการ'
-    : 'ทั้งหมด ' . number_format($totalUsers) . ' รายการ';
+$examYearStmt = $conn->query("
+    SELECT exam_year, COUNT(*) AS total_rows
+    FROM applicantname
+    WHERE exam_year IS NOT NULL AND TRIM(exam_year) <> '' AND id <> 'id'
+    GROUP BY exam_year
+    ORDER BY exam_year DESC
+");
+$examYears = $examYearStmt->fetchAll(PDO::FETCH_ASSOC);
+$totalExamYears = count($examYears);
+
+if ($view === 'pending') {
+    $pageTitle = 'ยืนยันสิทธิ์การเข้าใช้';
+    $pageSubtitle = 'รอการอนุมัติ ' . number_format($totalPendingUsers) . ' รายการ';
+} elseif ($view === 'delete_year') {
+    $pageTitle = 'ลบข้อมูลปีนสต';
+    $pageSubtitle = 'มีปีข้อมูลทั้งหมด ' . number_format($totalExamYears) . ' รุ่น';
+} else {
+    $pageTitle = 'ผู้เข้าใช้ระบบ';
+    $pageSubtitle = 'ทั้งหมด ' . number_format($totalUsers) . ' รายการ';
+}
 ?>
 <!DOCTYPE html>
 <html lang="th">
@@ -385,6 +426,21 @@ $pageSubtitle = $view === 'pending'
             font-size: 0.84rem;
         }
 
+        .admin-delete-btn {
+            border: none;
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            background: #dc2626;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .admin-delete-btn:hover {
+            filter: brightness(0.96);
+        }
+
         @media (max-width: 720px) {
             .admin-form-grid {
                 grid-template-columns: 1fr;
@@ -437,6 +493,7 @@ $pageSubtitle = $view === 'pending'
             <div class="menu-title">เมนู</div>
             <a class="menu-btn<?= $view === 'users' ? ' active' : '' ?>" href="admin.php?view=users">รายชื่อผู้เข้าใช้</a>
             <a class="menu-btn<?= $view === 'pending' ? ' active' : '' ?>" href="admin.php?view=pending">ยืนยันสิทธิ์การเข้าใช้</a>
+            <a class="menu-btn<?= $view === 'delete_year' ? ' active' : '' ?>" href="admin.php?view=delete_year">ลบปีข้อมูลนสต</a>
         </aside>
 
         <main class="content">
@@ -447,7 +504,47 @@ $pageSubtitle = $view === 'pending'
                 <div class="admin-alert error"><?= $h($formError) ?></div>
             <?php endif; ?>
 
-            <?php if ($view === 'pending'): ?>
+            <?php if ($view === 'delete_year'): ?>
+                <div class="admin-toolbar">
+                    <div class="admin-summary">ลบข้อมูลผู้สมัครทั้งรุ่นจาก `exam_year` ที่มีอยู่ในระบบ</div>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ลำดับ</th>
+                                <th>นสต.รุ่นที่</th>
+                                <th>จำนวนข้อมูล</th>
+                                <th>ลบข้อมูล</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!$examYears): ?>
+                                <tr>
+                                    <td colspan="4" class="empty-row">ยังไม่มีข้อมูลปี นสต. ในระบบ</td>
+                                </tr>
+                            <?php endif; ?>
+                            <?php foreach ($examYears as $index => $yearRow): ?>
+                                <?php $examYearValue = trim((string) ($yearRow['exam_year'] ?? '')); ?>
+                                <tr>
+                                    <td><?= $index + 1 ?></td>
+                                    <td><?= $h('นสต.' . $examYearValue) ?></td>
+                                    <td><?= number_format((int) ($yearRow['total_rows'] ?? 0)) ?> รายการ</td>
+                                    <td>
+                                        <form method="post" onsubmit="return confirm('ยืนยันการลบข้อมูล นสต.รุ่นที่ <?= $h($examYearValue) ?> ทั้งหมดหรือไม่');" style="margin:0;">
+                                            <input type="hidden" name="action" value="delete_exam_year">
+                                            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+                                            <input type="hidden" name="exam_year" value="<?= $h($examYearValue) ?>">
+                                            <button type="submit" class="admin-delete-btn">ลบข้อมูล</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php elseif ($view === 'pending'): ?>
                 <div class="admin-toolbar">
                     <div class="admin-summary">รายการผู้สมัครใหม่ที่ยังรอการยืนยันสิทธิ์เข้าใช้งานจากผู้ดูแลระบบ</div>
                 </div>
