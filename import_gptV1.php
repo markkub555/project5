@@ -112,10 +112,42 @@ $formatYearLabel = static function ($year): string {
             line-height: 1.1;
         }
 
-        .header-title {
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .header-home {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            text-decoration: none;
+            font-size: 1.35rem;
+            line-height: 1;
+        }
+
+        .header-home:hover {
+            color: #fff;
+            opacity: 0.9;
+        }
+
+        .header-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+        }
+
+        .header-meta strong {
             font-size: 1.1rem;
-            font-weight: 700;
-            white-space: nowrap;
+            line-height: 1.1;
+        }
+
+        .header-meta span {
+            font-size: 0.82rem;
+            opacity: 0.92;
         }
 
         .page {
@@ -279,10 +311,6 @@ $formatYearLabel = static function ($year): string {
             .submit-btn {
                 width: 100%;
             }
-
-            .header-title {
-                font-size: 0.96rem;
-            }
         }
 
         @media (max-width: 640px) {
@@ -296,6 +324,10 @@ $formatYearLabel = static function ($year): string {
             .brand-wrap p {
                 display: none;
             }
+
+            .header-right {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -303,15 +335,23 @@ $formatYearLabel = static function ($year): string {
 <body>
     <header class="top-header">
         <div class="brand-wrap">
-            <a href="menu.php" class="logo-link" aria-label="กลับหน้าเมนูหลัก">
+            <span class="logo-link">
                 <img src="upload/tcpr5-1024x990.png" class="logo" alt="ตราศูนย์ฝึกอบรมตำรวจภูธรภาค 5">
-            </a>
+            </span>
             <div>
                 <h1>ศูนย์ฝึกอบรมตำรวจภูธรภาค ๕</h1>
                 <p>TRAINING CENTER OF PROVINCIAL POLICE REGION 5</p>
             </div>
         </div>
-        <div class="header-title">นำเข้าข้อมูลผู้สมัคร</div>
+        <div class="header-right">
+            <a class="header-home" href="menu.php" aria-label="กลับหน้าเมนูหลัก">
+                <i class="bi bi-house-door-fill"></i>
+            </a>
+            <div class="header-meta">
+                <strong>นำเข้าข้อมูลผู้สมัคร</strong>
+                <span>กลับหน้าเมนูหลักได้ทันที</span>
+            </div>
+        </div>
     </header>
 
     <main class="page">
