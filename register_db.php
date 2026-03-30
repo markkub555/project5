@@ -23,20 +23,20 @@ if (isset($_POST['register'])) {
         empty($password) || empty($c_password)) {
 
         $_SESSION['error'] = "กรุณากรอกข้อมูลให้ครบทุกช่อง";
-        header("location: register.php");
+        header("location: index.php");
         exit();
     }
 
     // ตรวจสอบรหัสผ่านตรงกัน
     if ($password !== $c_password) {
         $_SESSION['error'] = "รหัสผ่านไม่ตรงกัน";
-        header("location: register.php");
+        header("location: index.php");
         exit();
     }
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $_SESSION['error'] = "รูปแบบอีเมลไม่ถูกต้อง";
-        header("location: register.php");
+        header("location: index.php");
         exit();
     }
 
@@ -48,7 +48,7 @@ if (isset($_POST['register'])) {
 
         if ($check->rowCount() > 0) {
             $_SESSION['error'] = "ชื่อผู้ใช้นี้ถูกใช้งานแล้ว";
-            header("location: register.php");
+            header("location: index.php");
             exit();
         }
 
@@ -57,7 +57,7 @@ if (isset($_POST['register'])) {
 
         if ($emailCheck->rowCount() > 0) {
             $_SESSION['error'] = "อีเมลนี้ถูกใช้งานแล้ว";
-            header("location: register.php");
+            header("location: index.php");
             exit();
         }
 
@@ -86,10 +86,24 @@ if (isset($_POST['register'])) {
         exit();
 
     } catch (PDOException $e) {
+        error_log('register_db.php: ' . $e->getMessage());
 
-        // ไม่แสดง error ภายในระบบจริง
-        $_SESSION['error'] = "เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่อีกครั้ง";
-        header("location: register.php");
+        $errorCode = (string) $e->getCode();
+        $message = (string) $e->getMessage();
+
+        if ($errorCode === '23000') {
+            if (stripos($message, 'username') !== false) {
+                $_SESSION['error'] = "ชื่อผู้ใช้นี้ถูกใช้งานแล้ว";
+            } elseif (stripos($message, 'email') !== false) {
+                $_SESSION['error'] = "อีเมลนี้ถูกใช้งานแล้ว";
+            } else {
+                $_SESSION['error'] = "ข้อมูลซ้ำในระบบ กรุณาตรวจสอบอีกครั้ง";
+            }
+        } else {
+            $_SESSION['error'] = "เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่อีกครั้ง";
+        }
+
+        header("location: index.php");
         exit();
     }
 }

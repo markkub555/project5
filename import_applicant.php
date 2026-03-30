@@ -18,6 +18,14 @@ if ($exam_year === '') {
     exit;
 }
 
+$duplicateYearStmt = $conn->prepare('SELECT COUNT(*) FROM applicantname WHERE exam_year = :exam_year');
+$duplicateYearStmt->execute([':exam_year' => $exam_year]);
+if ((int) $duplicateYearStmt->fetchColumn() > 0) {
+    $_SESSION['import_error'] = "มีข้อมูล นสต.รุ่นที่ {$exam_year} อยู่แล้ว ไม่สามารถนำเข้าซ้ำได้";
+    header('Location: import_gptV1.php');
+    exit;
+}
+
 if (!$fileInfo || ($fileInfo['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
     http_response_code(400);
     echo 'ไม่พบไฟล์ที่อัปโหลด';

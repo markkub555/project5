@@ -11,9 +11,14 @@ if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] === '') {
 $csrfToken = (string) $_SESSION['csrf_token'];
 
 $importMessage = '';
+$importError = '';
 if (isset($_SESSION['import_result'])) {
     $importMessage = (string) $_SESSION['import_result'];
     unset($_SESSION['import_result']);
+}
+if (isset($_SESSION['import_error'])) {
+    $importError = (string) $_SESSION['import_error'];
+    unset($_SESSION['import_error']);
 }
 
 $formatYearLabel = static function ($year): string {
@@ -315,6 +320,9 @@ $formatYearLabel = static function ($year): string {
             <p class="panel-subtitle">รองรับไฟล์ CSV และ Excel เพื่อบันทึกข้อมูลผู้สมัครเข้าระบบ</p>
             <?php if ($importMessage !== ''): ?>
                 <p class="panel-subtitle" style="color:#0f5132;font-weight:600;"><?= htmlspecialchars($importMessage, ENT_QUOTES, 'UTF-8') ?></p>
+            <?php endif; ?>
+            <?php if ($importError !== ''): ?>
+                <p class="panel-subtitle" style="color:#b91c1c;font-weight:600;"><?= htmlspecialchars($importError, ENT_QUOTES, 'UTF-8') ?></p>
             <?php endif; ?>
 
             <form action="import_applicant.php" method="post" enctype="multipart/form-data">
