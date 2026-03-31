@@ -61,14 +61,32 @@ $columnDefinitions = [
 ];
 
 $defaultColumns = ['id', 'idcode', 'prefix', 'firstname', 'lastname', 'score', 'allname'];
-$selectedColumns = $_REQUEST['columns'] ?? $defaultColumns;
-if (!is_array($selectedColumns)) {
-    $selectedColumns = $defaultColumns;
+$requestedColumns = $_REQUEST['columns'] ?? $defaultColumns;
+if (!is_array($requestedColumns)) {
+    $requestedColumns = $defaultColumns;
 }
-$selectedColumns = array_values(array_intersect(array_keys($columnDefinitions), $selectedColumns));
+$selectedColumns = [];
+foreach ($requestedColumns as $column) {
+    $column = (string) $column;
+    if (!isset($columnDefinitions[$column]) || in_array($column, $selectedColumns, true)) {
+        continue;
+    }
+    $selectedColumns[] = $column;
+}
 if ($selectedColumns === []) {
     $selectedColumns = $defaultColumns;
 }
+$selectedColumnSet = array_fill_keys($selectedColumns, true);
+
+$resultFilter = strtoupper(trim((string) ($_REQUEST['result_filter'] ?? 'ALL')));
+if (!in_array($resultFilter, ['ALL', 'P', 'F'], true)) {
+    $resultFilter = 'ALL';
+}
+$resultFilterLabels = [
+    'ALL' => 'ทั้งหมด',
+    'P' => 'เฉพาะผ่าน',
+    'F' => 'เฉพาะไม่ผ่าน',
+];
 
 $statusMap = [
     'W' => 'รอดำเนินการ',
@@ -80,7 +98,21 @@ $statusMap = [
 $noteColumnMap = applicantNoteColumnMap();
 $selectParts = [];
 $joinParts = [];
-foreach ($columnDefinitions as $column => $definition) {
+$allnameExpr = applicantAllnameExpr($applicantSchema, 'applicantname');
+$hasFailExpr = "(
+    applicantname.submit_doc = 'F'
+    OR applicantname.lab_check = 'F'
+    OR applicantname.swim_test = 'F'
+    OR applicantname.run_test = 'F'
+    OR applicantname.station3_test = 'F'
+    OR applicantname.hospital_check = 'F'
+    OR applicantname.fingerprint_check = 'F'
+    OR applicantname.background_check = 'F'
+    OR applicantname.interview = 'F'
+    OR applicantname.militarydoc = 'F'
+)";
+foreach ($selectedColumns as $column) {
+    $definition = $columnDefinitions[$column];
     if (isset($noteColumnMap[$column])) {
         $stageKey = $noteColumnMap[$column];
         $alias = $column . '_row';
@@ -89,6 +121,8 @@ foreach ($columnDefinitions as $column => $definition) {
            AND CONVERT($alias.applicant_id USING utf8mb4) = CONVERT(" . applicantIdTextExpr('applicantname') . " USING utf8mb4)
            AND $alias.stage_key = " . $conn->quote($stageKey);
         $selectParts[] = "$alias.note AS `$column`";
+    } elseif ($column === 'allname') {
+        $selectParts[] = "($allnameExpr) AS `allname`";
     } else {
         $selectParts[] = 'applicantname.`' . $column . '` AS `' . $column . '`';
     }
@@ -96,8 +130,16 @@ foreach ($columnDefinitions as $column => $definition) {
 
 $sqlColumns = implode(', ', $selectParts);
 $sqlJoins = implode("\n", $joinParts);
-$listStmt = $conn->prepare("SELECT $sqlColumns FROM applicantname\n$sqlJoins\nWHERE applicantname.id <> 'id' AND applicantname.exam_year = :exam_year ORDER BY " . applicantOrderExpr($applicantSchema, 'applicantname'));
-$listStmt->execute([':exam_year' => $examYear]);
+$whereParts = ["applicantname.id <> 'id'", 'applicantname.exam_year = :exam_year'];
+$queryParams = [':exam_year' => $examYear];
+if ($resultFilter === 'F') {
+    $whereParts[] = $hasFailExpr;
+} elseif ($resultFilter === 'P') {
+    $whereParts[] = "NOT $hasFailExpr";
+}
+$whereSql = implode(' AND ', $whereParts);
+$listStmt = $conn->prepare("SELECT $sqlColumns FROM applicantname\n$sqlJoins\nWHERE $whereSql ORDER BY " . applicantOrderExpr($applicantSchema, 'applicantname'));
+$listStmt->execute($queryParams);
 $rows = $listStmt->fetchAll(PDO::FETCH_ASSOC);
 $totalRows = count($rows);
 
@@ -306,7 +348,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'expor
         <main class="content">
             <section class="export-panel">
                 <h2 class="export-title">เลือกข้อมูลที่ต้องการนำออก</h2>
-                <p class="export-subtitle">ติ๊กคอลัมน์ที่ต้องการ แล้วกดพรีวิวหรือนำออกเป็น Excel ได้ทันที</p>
+                <p class="export-subtitle">ติ๊กคอลัมน์ตามลำดับที่ต้องการให้ออกจริง ระบบจะเรียงตามที่เลือก และสามารถกรองเฉพาะผ่านหรือไม่ผ่านได้</p>
 
                 <form method="post" id="exportForm">
                     <input type="hidden" name="action" value="export_excel">
@@ -315,13 +357,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'expor
                     <div class="export-actions" style="margin-bottom:12px;">
                         <button type="button" class="quick-btn" id="selectAllColumns">เลือกทั้งหมด</button>
                         <button type="button" class="quick-btn" id="clearAllColumns">ล้างทั้งหมด</button>
-                        <span class="preview-note">ข้อมูลทั้งหมด <?= number_format($totalRows) ?> รายการ</span>
+                        <label class="export-check" style="margin-left:auto;">
+                            <span>ข้อมูลที่นำออก</span>
+                            <select id="resultFilter" class="form-select form-select-sm" style="width:auto; min-width:150px;">
+                                <?php foreach ($resultFilterLabels as $value => $label): ?>
+                                    <option value="<?= $h($value) ?>" <?= $resultFilter === $value ? 'selected' : '' ?>><?= $h($label) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <span class="preview-note">ข้อมูลที่พบ <?= number_format($totalRows) ?> รายการ</span>
                     </div>
 
                     <div class="export-grid">
                         <?php foreach ($columnDefinitions as $column => $definition): ?>
                             <label class="export-check">
-                                <input type="checkbox" name="columns[]" value="<?= $h($column) ?>" <?= in_array($column, $selectedColumns, true) ? 'checked' : '' ?>>
+                                <input type="checkbox" data-column="<?= $h($column) ?>" <?= isset($selectedColumnSet[$column]) ? 'checked' : '' ?>>
                                 <span><?= $h($definition['label']) ?></span>
                             </label>
                         <?php endforeach; ?>
@@ -375,9 +425,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'expor
         const exportForm = document.getElementById('exportForm');
         const previewForm = document.getElementById('previewForm');
         const previewButton = document.getElementById('previewButton');
-        const checkboxes = Array.from(document.querySelectorAll('input[name="columns[]"]'));
+        const checkboxes = Array.from(document.querySelectorAll('input[data-column]'));
         const selectAllColumns = document.getElementById('selectAllColumns');
         const clearAllColumns = document.getElementById('clearAllColumns');
+        const resultFilter = document.getElementById('resultFilter');
+        const definitionOrder = <?= json_encode(array_keys($columnDefinitions), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+        let orderedColumns = <?= json_encode($selectedColumns, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 
         profileTrigger.addEventListener('click', function(event) {
             event.stopPropagation();
@@ -390,13 +443,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'expor
             }
         });
 
+        function syncColumnOrder(column, checked) {
+            orderedColumns = orderedColumns.filter((item) => item !== column);
+            if (checked) {
+                orderedColumns.push(column);
+            }
+        }
+
+        function appendOrderedColumns(targetForm) {
+            targetForm.querySelectorAll('input[name="columns[]"], input[name="result_filter"]').forEach((input) => {
+                input.remove();
+            });
+
+            orderedColumns.forEach((column) => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'columns[]';
+                input.value = column;
+                targetForm.appendChild(input);
+            });
+
+            const filterInput = document.createElement('input');
+            filterInput.type = 'hidden';
+            filterInput.name = 'result_filter';
+            filterInput.value = resultFilter.value;
+            targetForm.appendChild(filterInput);
+        }
+
+        checkboxes.forEach((checkbox) => {
+            checkbox.addEventListener('change', function() {
+                syncColumnOrder(this.dataset.column, this.checked);
+            });
+        });
+
         selectAllColumns.addEventListener('click', function() {
+            orderedColumns = [...definitionOrder];
             checkboxes.forEach((checkbox) => {
                 checkbox.checked = true;
             });
         });
 
         clearAllColumns.addEventListener('click', function() {
+            orderedColumns = [];
             checkboxes.forEach((checkbox) => {
                 checkbox.checked = false;
             });
@@ -404,20 +492,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'expor
 
         previewButton.addEventListener('click', function() {
             previewForm.innerHTML = '';
-            checkboxes.forEach((checkbox) => {
-                if (checkbox.checked) {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = 'columns[]';
-                    input.value = checkbox.value;
-                    previewForm.appendChild(input);
-                }
-            });
+            appendOrderedColumns(previewForm);
             previewForm.submit();
         });
 
         exportForm.addEventListener('submit', function(event) {
-            if (!checkboxes.some((checkbox) => checkbox.checked)) {
+            appendOrderedColumns(exportForm);
+            if (orderedColumns.length === 0) {
                 event.preventDefault();
                 alert('กรุณาเลือกข้อมูลอย่างน้อย 1 รายการ');
             }
