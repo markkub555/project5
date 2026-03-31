@@ -140,13 +140,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (!in_array($statusFormData['userstatus'], ['W', 'P', 'F'], true)) {
             $formError = 'สถานะที่เลือกไม่ถูกต้อง';
         } else {
-            $statusStmt = $conn->prepare('UPDATE users SET userstatus = :userstatus WHERE id = :id');
-            $statusStmt->execute([
-                ':userstatus' => $statusFormData['userstatus'],
-                ':id' => $statusFormData['id'],
-            ]);
+            if ($statusFormData['userstatus'] === 'F') {
+                $deleteUserStmt = $conn->prepare('DELETE FROM users WHERE id = :id');
+                $deleteUserStmt->execute([
+                    ':id' => $statusFormData['id'],
+                ]);
+                $_SESSION['admin_success'] = 'ไม่อนุมัติเรียบร้อย และลบผู้ใช้ออกจากฐานข้อมูลแล้ว';
+            } else {
+                $statusStmt = $conn->prepare('UPDATE users SET userstatus = :userstatus WHERE id = :id');
+                $statusStmt->execute([
+                    ':userstatus' => $statusFormData['userstatus'],
+                    ':id' => $statusFormData['id'],
+                ]);
 
-            $_SESSION['admin_success'] = 'อัปเดตสถานะการเข้าใช้งานเรียบร้อย';
+                $_SESSION['admin_success'] = 'อัปเดตสถานะการเข้าใช้งานเรียบร้อย';
+            }
             header('Location: admin.php?view=pending');
             exit;
         }
@@ -183,7 +191,9 @@ if (isset($_SESSION['admin_success'])) {
     unset($_SESSION['admin_success']);
 }
 
-$listStmt = $conn->query("SELECT id, position, idnumber, firstname, lastname, username, email, number, COALESCE(NULLIF(TRIM(userstatus), ''), 'P') AS userstatus FROM users ORDER BY id");
+$conn->exec("DELETE FROM users WHERE COALESCE(NULLIF(TRIM(userstatus), ''), 'P') = 'F'");
+
+$listStmt = $conn->query("SELECT id, position, idnumber, firstname, lastname, username, email, number, COALESCE(NULLIF(TRIM(userstatus), ''), 'P') AS userstatus FROM users WHERE COALESCE(NULLIF(TRIM(userstatus), ''), 'P') = 'P' ORDER BY id");
 $users = $listStmt->fetchAll(PDO::FETCH_ASSOC);
 $totalUsers = count($users);
 
@@ -501,7 +511,7 @@ if ($view === 'pending') {
 
             <?php if ($view === 'delete_year'): ?>
                 <div class="admin-toolbar">
-                    <div class="admin-summary">ลบข้อมูลผู้สมัครทั้งรุ่นจาก `exam_year` ที่มีอยู่ในระบบ</div>
+                    <div class="admin-summary">ลบข้อมูลผู้สมัครทั้งรุ่นจาก `รุ่นนสต.` ที่มีอยู่ในระบบ</div>
                 </div>
 
                 <div class="table-wrap">
