@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/applicant_notes.php';
+require_once __DIR__ . '/../includes/bootstrap.php';
 
 function handleStatusUpdate(
     PDO $conn,
@@ -13,7 +14,7 @@ function handleStatusUpdate(
 ): void
 {
     if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
+        secureSessionStart();
     }
 
     if (!isset($_SESSION['user_login'])) {

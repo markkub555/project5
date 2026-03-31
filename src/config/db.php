@@ -1,10 +1,12 @@
 <?php
 
-$dbHost = getenv('DB_HOST') ?: '192.168.1.17';
-$dbPort = (int) (getenv('DB_PORT') ?: 3306);
-$dbName = getenv('DB_NAME') ?: 'register';
-$dbUser = getenv('DB_USERNAME') ?: 'shareduser';
-$dbPass = getenv('DB_PASSWORD') ?: '1234';
+require_once __DIR__ . '/../includes/env.php';
+
+$dbHost = envValue('DB_HOST', '');
+$dbPort = (int) (envValue('DB_PORT', '3306') ?: '3306');
+$dbName = envValue('DB_NAME', '');
+$dbUser = envValue('DB_USERNAME', '');
+$dbPass = envValue('DB_PASSWORD', '');
 
 try {
     $conn = new PDO(

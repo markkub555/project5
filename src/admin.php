@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once __DIR__ . '/includes/bootstrap.php';
+secureSessionStart();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/ensure_user_reset_schema.php';
 
@@ -26,7 +27,7 @@ if (!in_array($view, ['users', 'pending', 'delete_year'], true)) {
 }
 
 $adminId = (int) $_SESSION['admin_login'];
-$stmt = $conn->prepare('SELECT * FROM users WHERE id = :id LIMIT 1');
+$stmt = $conn->prepare('SELECT id, firstname, lastname, username FROM users WHERE id = :id LIMIT 1');
 $stmt->execute([':id' => $adminId]);
 $adminRow = $stmt->fetch(PDO::FETCH_ASSOC) ?: ['firstname' => '', 'lastname' => '', 'username' => ''];
 

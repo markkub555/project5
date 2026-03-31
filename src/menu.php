@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once __DIR__ . '/includes/bootstrap.php';
+secureSessionStart();
 require_once __DIR__ . '/config/db.php';
 
 if (isset($_GET['exam_year']) && $_GET['exam_year'] !== '') {

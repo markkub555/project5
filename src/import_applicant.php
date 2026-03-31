@@ -1,6 +1,13 @@
 <?php
-session_start();
+require_once __DIR__ . '/includes/bootstrap.php';
+secureSessionStart();
 require_once __DIR__ . '/config/db.php';
+
+if (!isset($_SESSION['user_login']) && !isset($_SESSION['admin_login'])) {
+    http_response_code(401);
+    echo 'Unauthorized';
+    exit;
+}
 
 $csrfToken = (string) ($_POST['csrf_token'] ?? '');
 if ($csrfToken === '' || !isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $csrfToken)) {

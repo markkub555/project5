@@ -1,6 +1,7 @@
 <?php
 
-session_start();
+require_once __DIR__ . '/includes/bootstrap.php';
+secureSessionStart();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/ensure_user_reset_schema.php';
 
@@ -10,6 +11,12 @@ if (isset($_POST['login'])) {
 
     $username = trim($_POST['username']);
     $password = $_POST['password'];
+
+    if (!consumeRateLimit('login_attempt', 10, 900, clientIpAddress() . '|' . mb_strtolower($username))) {
+        $_SESSION['error'] = 'พยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่';
+        header("location: login.php");
+        exit();
+    }
 
     // ตรวจสอบชื่อผู้ใช้
     if (empty($username)) {
@@ -28,7 +35,12 @@ if (isset($_POST['login'])) {
     try {
 
         // ค้นหาข้อมูลจาก username
-        $stmt = $conn->prepare("SELECT * FROM users WHERE username = :username");
+        $stmt = $conn->prepare(
+            "SELECT id, position, password, userstatus
+             FROM users
+             WHERE username = :username
+             LIMIT 1"
+        );
         $stmt->bindParam(":username", $username);
         $stmt->execute();
 
@@ -40,6 +52,7 @@ if (isset($_POST['login'])) {
             if (password_verify($password, $row['password'])) {
 
                 if ($row['position'] === 'admin') {
+                    session_regenerate_id(true);
                     $_SESSION['admin_login'] = $row['id'];
                     header("location: admin.php");
                     exit();
@@ -57,8 +70,9 @@ if (isset($_POST['login'])) {
                         exit();
                     }
 
+                    session_regenerate_id(true);
                     $_SESSION['user_login'] = $row['id'];
-                    header("location: import_gptv1.php");
+                    header("location: import_gptV1.php");
                     exit();
                 }
 

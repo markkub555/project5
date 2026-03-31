@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 function renderStatusPage(array $config): void
 {
-    session_start();
+    require_once __DIR__ . '/bootstrap.php';
+    secureSessionStart();
     require __DIR__ . '/../config/db.php';
     require_once __DIR__ . '/ensure_applicant_schema.php';
     require_once __DIR__ . '/applicant_notes.php';

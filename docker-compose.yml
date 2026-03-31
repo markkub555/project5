@@ -8,18 +8,18 @@ services:
     ports:
       - "8080:80"
     environment:
-      DB_HOST: mysql-db
-      DB_PORT: 3306
-      DB_NAME: register
-      DB_USERNAME: shareduser
-      DB_PASSWORD: 1234
-      SMTP_HOST: smtp.gmail.com
-      SMTP_PORT: 587
-      SMTP_USERNAME: panu.060944@gmail.com
-      SMTP_PASSWORD: tppr ltyb kxcn nqgm
-      SMTP_FROM_EMAIL: panu.060944@gmail.com
-      SMTP_FROM_NAME: Training Center of Provincial Police Region 5
-      SMTP_SECURE: tls
+      DB_HOST: ${DOCKER_DB_HOST}
+      DB_PORT: ${DOCKER_DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME}
+      SMTP_SECURE: ${SMTP_SECURE}
     depends_on:
       mysql-db:
         condition: service_healthy
@@ -32,10 +32,10 @@ services:
     restart: unless-stopped
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: register
-      MYSQL_USER: shareduser
-      MYSQL_PASSWORD: 1234
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
       - "3307:3306"
     volumes:
@@ -55,7 +55,7 @@ services:
       PMA_HOST: mysql-db
       PMA_PORT: 3306
       PMA_USER: root
-      PMA_PASSWORD: root
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       UPLOAD_LIMIT: 128M
     ports:
       - "8081:80"

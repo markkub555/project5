@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once __DIR__ . '/../includes/bootstrap.php';
+secureSessionStart();
 require_once '../config/db.php';
 
 header('Content-Type: application/json; charset=UTF-8');

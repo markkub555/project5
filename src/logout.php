@@ -1,8 +1,13 @@
-<?php 
+<?php
 
-    session_start();
-    unset($_SESSION['user_login']);
-    unset($_SESSION['admin_login']);
-    header('location: login.php');
+require_once __DIR__ . '/includes/bootstrap.php';
+secureSessionStart();
 
-?>
+$_SESSION = [];
+if (ini_get('session.use_cookies')) {
+    $params = session_get_cookie_params();
+    setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], (bool) $params['secure'], (bool) $params['httponly']);
+}
+session_destroy();
+header('location: login.php');
+exit;

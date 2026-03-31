@@ -1,6 +1,12 @@
 <?php
-session_start();
+require_once __DIR__ . '/includes/bootstrap.php';
+secureSessionStart();
 require_once __DIR__ . '/config/db.php';
+
+if (!isset($_SESSION['user_login']) && !isset($_SESSION['admin_login'])) {
+    header('Location: login.php');
+    exit;
+}
 
 $yearStmt = $conn->query("\n    SELECT DISTINCT exam_year\n    FROM applicantname\n    WHERE exam_year IS NOT NULL\n    ORDER BY exam_year DESC\n");
 $years = $yearStmt->fetchAll(PDO::FETCH_COLUMN);
@@ -41,7 +47,7 @@ $formatYearLabel = static function ($year): string {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>นำเข้าข้อมูลผู้สมัคร</title>
-            <link href="assets/css/local-fonts.css" rel="stylesheet">
+    <link href="assets/css/local-fonts.css" rel="stylesheet">
     <link href="assets/vendor/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 
     <style>

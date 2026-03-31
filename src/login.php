@@ -1,4 +1,7 @@
-<?php session_start(); ?>
+<?php
+require_once __DIR__ . '/includes/bootstrap.php';
+secureSessionStart();
+?>
 <!DOCTYPE html>
 <html lang="th">
 
