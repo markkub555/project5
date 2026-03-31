@@ -3,6 +3,7 @@
 require_once __DIR__ . '/includes/bootstrap.php';
 secureSessionStart();
 require_once __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/audit_log.php';
 require_once __DIR__ . '/includes/ensure_user_reset_schema.php';
 
 ensureUserResetSchema($conn);
@@ -13,6 +14,7 @@ if (isset($_POST['login'])) {
     $password = $_POST['password'];
 
     if (!consumeRateLimit('login_attempt', 10, 900, clientIpAddress() . '|' . mb_strtolower($username))) {
+        auditLog($conn, 'login_rate_limited', 'auth', $username, ['username' => $username], null, $username, 'guest');
         $_SESSION['error'] = 'พยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่';
         header("location: login.php");
         exit();
@@ -54,6 +56,7 @@ if (isset($_POST['login'])) {
                 if ($row['position'] === 'admin') {
                     session_regenerate_id(true);
                     $_SESSION['admin_login'] = $row['id'];
+                    auditLog($conn, 'login_success', 'user', (string) $row['id'], ['username' => $username], (int) $row['id'], $username, 'admin');
                     header("location: admin.php");
                     exit();
                 } else {
@@ -72,24 +75,27 @@ if (isset($_POST['login'])) {
 
                     session_regenerate_id(true);
                     $_SESSION['user_login'] = $row['id'];
+                    auditLog($conn, 'login_success', 'user', (string) $row['id'], ['username' => $username], (int) $row['id'], $username, 'user');
                     header("location: import_gptV1.php");
                     exit();
                 }
 
             } else {
+                auditLog($conn, 'login_failed_password', 'auth', $username, ['username' => $username], null, $username, 'guest');
                 $_SESSION['error'] = 'รหัสผ่านไม่ถูกต้อง';
                 header("location: login.php");
                 exit();
             }
 
         } else {
+            auditLog($conn, 'login_failed_user_not_found', 'auth', $username, ['username' => $username], null, $username, 'guest');
             $_SESSION['error'] = "ไม่พบชื่อผู้ใช้ในระบบ";
             header("location: login.php");
             exit();
         }
 
     } catch (PDOException $e) {
-
+        auditLog($conn, 'login_failed_exception', 'auth', $username, ['username' => $username]);
         $_SESSION['error'] = "เกิดข้อผิดพลาดในระบบ";
         header("location: login.php");
         exit();

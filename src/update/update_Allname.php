@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/bootstrap.php';
 secureSessionStart();
 require_once '../config/db.php';
+require_once '../includes/audit_log.php';
 
 header('Content-Type: application/json; charset=UTF-8');
 
@@ -73,6 +74,19 @@ try {
     }
 
     $conn->commit();
+
+    if ($updated > 0) {
+        auditLog(
+            $conn,
+            'update_applicant_names',
+            'applicant',
+            null,
+            ['updated' => $updated],
+            (int) ($_SESSION['user_login'] ?? 0),
+            null,
+            'user'
+        );
+    }
 
     echo json_encode([
         'success' => true,

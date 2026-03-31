@@ -2,6 +2,7 @@
 require_once __DIR__ . '/includes/bootstrap.php';
 secureSessionStart();
 require_once __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/audit_log.php';
 require_once __DIR__ . '/includes/ensure_user_reset_schema.php';
 require_once __DIR__ . '/vendor/phpmailer/phpmailer/src/Exception.php';
 require_once __DIR__ . '/vendor/phpmailer/phpmailer/src/PHPMailer.php';
@@ -86,6 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $emailValue = trim((string) ($_POST['email'] ?? ''));
 
         if (!consumeRateLimit('forgot_send_otp', 5, 900, clientIpAddress() . '|' . mb_strtolower($emailValue))) {
+            auditLog($conn, 'forgot_password_rate_limited', 'auth', $emailValue, ['email' => $emailValue], null, $emailValue, 'guest');
             $requestError = 'ขอ OTP บ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่';
         } elseif ($emailValue === '' || !filter_var($emailValue, FILTER_VALIDATE_EMAIL)) {
             $requestError = 'กรุณากรอกอีเมลให้ถูกต้อง';
@@ -119,7 +121,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $mailResult = $sendOtpMail($emailValue, $resetCode);
 
                 if (!$mailResult['success']) {
+                    auditLog($conn, 'forgot_password_mail_failed', 'user', (string) $user['id'], ['email' => $emailValue, 'error' => $mailResult['error']], (int) $user['id'], $emailValue, 'user');
                     $requestError = (string) $mailResult['error'];
+                } else {
+                    auditLog($conn, 'forgot_password_otp_sent', 'user', (string) $user['id'], ['email' => $emailValue], (int) $user['id'], $emailValue, 'user');
                 }
             }
 
@@ -137,6 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sessionTokenValue = (string) ($_SESSION['forgot_reset_token'] ?? '');
 
         if (!consumeRateLimit('forgot_reset_password', 10, 900, clientIpAddress() . '|' . mb_strtolower($emailValue))) {
+            auditLog($conn, 'forgot_password_verify_rate_limited', 'auth', $emailValue, ['email' => $emailValue], null, $emailValue, 'guest');
             $verifyError = 'ยืนยัน OTP บ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่';
         } elseif ($emailValue === '' || $otpCode === '' || $password === '' || $confirmPassword === '') {
             $verifyError = 'กรุณากรอกข้อมูลให้ครบทุกช่อง';
@@ -185,6 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 unset($_SESSION['forgot_reset_email'], $_SESSION['forgot_reset_token']);
                 session_regenerate_id(true);
+                auditLog($conn, 'forgot_password_reset_success', 'user', (string) $user['id'], ['email' => $emailValue], (int) $user['id'], $emailValue, 'user');
                 $_SESSION['forgot_success'] = 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว กรุณาเข้าสู่ระบบด้วยรหัสผ่านใหม่';
                 header('Location: forgot_password.php');
                 exit;

@@ -2,6 +2,7 @@
 require_once __DIR__ . '/includes/bootstrap.php';
 secureSessionStart();
 require_once __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/audit_log.php';
 
 if (!isset($_SESSION['user_login']) && !isset($_SESSION['admin_login'])) {
     http_response_code(401);
@@ -211,5 +212,15 @@ foreach ($rows as $data) {
 }
 
 $_SESSION['import_result'] = "นำเข้าข้อมูลเรียบร้อย (เพิ่มใหม่ {$inserted} รายการ, อัปเดต {$updated} รายการ, ข้าม {$skipped} รายการ)";
+auditLog(
+    $conn,
+    'import_applicants',
+    'exam_year',
+    $exam_year,
+    ['inserted' => $inserted, 'updated' => $updated, 'skipped' => $skipped, 'extension' => $extension],
+    isset($_SESSION['admin_login']) ? (int) $_SESSION['admin_login'] : (int) ($_SESSION['user_login'] ?? 0),
+    null,
+    isset($_SESSION['admin_login']) ? 'admin' : 'user'
+);
 header('Location: import_gptV1.php');
 exit;

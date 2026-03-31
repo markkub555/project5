@@ -2,16 +2,63 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/env.php';
+
+function isHttpsRequest(): bool
+{
+    if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+        return true;
+    }
+
+    if ((int) ($_SERVER['SERVER_PORT'] ?? 0) === 443) {
+        return true;
+    }
+
+    $trustProxy = envValue('TRUST_PROXY', '0') === '1';
+    if ($trustProxy) {
+        $forwardedProto = strtolower(trim((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')));
+        if ($forwardedProto === 'https') {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function forceHttpsIfConfigured(): void
+{
+    if (envValue('FORCE_HTTPS', '0') !== '1') {
+        return;
+    }
+
+    if (isHttpsRequest()) {
+        return;
+    }
+
+    $host = trim((string) ($_SERVER['HTTP_HOST'] ?? ''));
+    if ($host === '') {
+        return;
+    }
+
+    $serverName = strtolower(preg_replace('/:\d+$/', '', $host) ?? '');
+    if (in_array($serverName, ['localhost', '127.0.0.1', '::1'], true)) {
+        return;
+    }
+
+    $requestUri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
+    header('Location: https://' . $host . $requestUri, true, 301);
+    exit;
+}
+
 function secureSessionStart(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) {
         return;
     }
 
-    $isHttps = (
-        (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || ((int) ($_SERVER['SERVER_PORT'] ?? 0) === 443)
-    );
+    forceHttpsIfConfigured();
+
+    $isHttps = isHttpsRequest();
 
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');

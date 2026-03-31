@@ -2,6 +2,7 @@
 require_once __DIR__ . '/includes/bootstrap.php';
 secureSessionStart();
 require_once __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/audit_log.php';
 require_once __DIR__ . '/includes/ensure_user_reset_schema.php';
 
 ensureUserResetSchema($conn);
@@ -22,7 +23,7 @@ $h = static function (string $value): string {
 };
 
 $view = (string) ($_GET['view'] ?? 'users');
-if (!in_array($view, ['users', 'pending', 'delete_year'], true)) {
+if (!in_array($view, ['users', 'pending', 'delete_year', 'audit_log'], true)) {
     $view = 'users';
 }
 
@@ -122,6 +123,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':id' => $formData['id'],
                 ]);
 
+                auditLog($conn, 'admin_update_user', 'user', (string) $formData['id'], [
+                    'position' => $formData['position'],
+                    'username' => $formData['username'],
+                    'email' => $formData['email'],
+                ], $adminId, (string) ($adminRow['username'] ?? ''), 'admin');
                 $_SESSION['admin_success'] = 'แก้ไขข้อมูลผู้ใช้เรียบร้อย';
                 header('Location: admin.php?view=users');
                 exit;
@@ -146,6 +152,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $deleteUserStmt->execute([
                     ':id' => $statusFormData['id'],
                 ]);
+                auditLog($conn, 'admin_reject_user', 'user', (string) $statusFormData['id'], [
+                    'fullname' => $statusFormData['fullname'],
+                    'username' => $statusFormData['username'],
+                ], $adminId, (string) ($adminRow['username'] ?? ''), 'admin');
                 $_SESSION['admin_success'] = 'ไม่อนุมัติเรียบร้อย และลบผู้ใช้ออกจากฐานข้อมูลแล้ว';
             } else {
                 $statusStmt = $conn->prepare('UPDATE users SET userstatus = :userstatus WHERE id = :id');
@@ -154,6 +164,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':id' => $statusFormData['id'],
                 ]);
 
+                auditLog($conn, 'admin_update_user_status', 'user', (string) $statusFormData['id'], [
+                    'fullname' => $statusFormData['fullname'],
+                    'username' => $statusFormData['username'],
+                    'userstatus' => $statusFormData['userstatus'],
+                ], $adminId, (string) ($adminRow['username'] ?? ''), 'admin');
                 $_SESSION['admin_success'] = 'อัปเดตสถานะการเข้าใช้งานเรียบร้อย';
             }
             header('Location: admin.php?view=pending');
@@ -179,6 +194,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     unset($_SESSION['exam_year']);
                 }
 
+                auditLog($conn, 'admin_delete_exam_year', 'exam_year', $deleteExamYear, [
+                    'deleted_rows' => $rowCount,
+                ], $adminId, (string) ($adminRow['username'] ?? ''), 'admin');
                 $_SESSION['admin_success'] = "ลบข้อมูล นสต.รุ่นที่ {$deleteExamYear} เรียบร้อย ({$rowCount} รายการ)";
                 header('Location: admin.php?view=delete_year');
                 exit;
@@ -212,12 +230,97 @@ $examYearStmt = $conn->query("
 $examYears = $examYearStmt->fetchAll(PDO::FETCH_ASSOC);
 $totalExamYears = count($examYears);
 
+ensureAuditLogSchema($conn);
+$auditPage = max(1, (int) ($_GET['page'] ?? 1));
+$auditPerPage = 50;
+$auditOffset = ($auditPage - 1) * $auditPerPage;
+$auditRows = [];
+$totalAuditLogs = 0;
+$auditTotalPages = 1;
+$auditFilter = (string) ($_GET['audit_filter'] ?? 'all');
+$auditFilterMap = [
+    'all' => [
+        'label' => 'ทั้งหมด',
+        'actions' => [],
+    ],
+    'login' => [
+        'label' => 'Login',
+        'actions' => ['login_success', 'login_failed_password', 'login_failed_user_not_found', 'login_failed_exception', 'login_rate_limited'],
+    ],
+    'import' => [
+        'label' => 'Import',
+        'actions' => ['import_applicants'],
+    ],
+    'update' => [
+        'label' => 'Update',
+        'actions' => ['admin_update_user', 'admin_update_user_status', 'update_stage_status', 'update_applicant_names'],
+    ],
+    'delete' => [
+        'label' => 'Delete',
+        'actions' => ['admin_delete_exam_year', 'admin_reject_user'],
+    ],
+    'password' => [
+        'label' => 'Password / OTP',
+        'actions' => ['forgot_password_rate_limited', 'forgot_password_mail_failed', 'forgot_password_otp_sent', 'forgot_password_verify_rate_limited', 'forgot_password_reset_success'],
+    ],
+];
+if (!isset($auditFilterMap[$auditFilter])) {
+    $auditFilter = 'all';
+}
+
+if ($view === 'audit_log') {
+    $auditCountSql = 'SELECT COUNT(*) FROM audit_logs';
+    $auditCountParams = [];
+    $auditWhereSql = '';
+
+    if ($auditFilterMap[$auditFilter]['actions'] !== []) {
+        $placeholders = [];
+        foreach ($auditFilterMap[$auditFilter]['actions'] as $actionIndex => $actionName) {
+            $placeholder = ':action_' . $actionIndex;
+            $placeholders[] = $placeholder;
+            $auditCountParams[$placeholder] = $actionName;
+        }
+        $auditWhereSql = ' WHERE action IN (' . implode(', ', $placeholders) . ')';
+        $auditCountSql .= $auditWhereSql;
+    }
+
+    $auditCountStmt = $conn->prepare($auditCountSql);
+    foreach ($auditCountParams as $paramName => $paramValue) {
+        $auditCountStmt->bindValue($paramName, $paramValue, PDO::PARAM_STR);
+    }
+    $auditCountStmt->execute();
+    $totalAuditLogs = (int) $auditCountStmt->fetchColumn();
+    $auditTotalPages = max(1, (int) ceil($totalAuditLogs / $auditPerPage));
+    if ($auditPage > $auditTotalPages) {
+        $auditPage = $auditTotalPages;
+        $auditOffset = ($auditPage - 1) * $auditPerPage;
+    }
+
+    $auditStmt = $conn->prepare(
+        'SELECT id, username, role, action, target_type, target_id, details, ip_address, created_at
+         FROM audit_logs
+         ' . $auditWhereSql . '
+         ORDER BY id DESC
+         LIMIT :limit OFFSET :offset'
+    );
+    foreach ($auditCountParams as $paramName => $paramValue) {
+        $auditStmt->bindValue($paramName, $paramValue, PDO::PARAM_STR);
+    }
+    $auditStmt->bindValue(':limit', $auditPerPage, PDO::PARAM_INT);
+    $auditStmt->bindValue(':offset', $auditOffset, PDO::PARAM_INT);
+    $auditStmt->execute();
+    $auditRows = $auditStmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
 if ($view === 'pending') {
     $pageTitle = 'ยืนยันสิทธิ์การเข้าใช้';
     $pageSubtitle = 'รอการอนุมัติ ' . number_format($totalPendingUsers) . ' รายการ';
 } elseif ($view === 'delete_year') {
     $pageTitle = 'ลบข้อมูลปีนสต';
     $pageSubtitle = 'มีปีข้อมูลทั้งหมด ' . number_format($totalExamYears) . ' รุ่น';
+} elseif ($view === 'audit_log') {
+    $pageTitle = 'Audit Log';
+    $pageSubtitle = 'แสดง ' . $auditFilterMap[$auditFilter]['label'] . ' จำนวน ' . number_format($totalAuditLogs) . ' รายการ';
 } else {
     $pageTitle = 'ผู้เข้าใช้ระบบ';
     $pageSubtitle = 'ทั้งหมด ' . number_format($totalUsers) . ' รายการ';
@@ -450,6 +553,100 @@ if ($view === 'pending') {
             filter: brightness(0.96);
         }
 
+        .audit-meta {
+            display: grid;
+            gap: 2px;
+            text-align: left;
+        }
+
+        .audit-meta strong {
+            color: #111827;
+            font-size: 0.84rem;
+        }
+
+        .audit-meta span {
+            color: #6b7280;
+            font-size: 0.76rem;
+        }
+
+        .audit-action {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .audit-details {
+            max-width: 360px;
+            text-align: left;
+            white-space: normal;
+            word-break: break-word;
+            color: #374151;
+            font-size: 0.78rem;
+            line-height: 1.45;
+        }
+
+        .audit-pagination {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .audit-filter-bar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .audit-filter-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 54px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 7px 12px;
+            background: #fff;
+            color: #374151;
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .audit-filter-chip.active {
+            background: #7f1d1d;
+            border-color: #7f1d1d;
+            color: #fff;
+        }
+
+        .audit-page-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 38px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 7px 12px;
+            text-decoration: none;
+            color: #374151;
+            background: #fff;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .audit-page-btn.active {
+            background: var(--brand);
+            color: #fff;
+            border-color: var(--brand);
+        }
+
         @media (max-width: 720px) {
             .admin-form-grid {
                 grid-template-columns: 1fr;
@@ -500,6 +697,7 @@ if ($view === 'pending') {
             <a class="menu-btn<?= $view === 'users' ? ' active' : '' ?>" href="admin.php?view=users">รายชื่อผู้เข้าใช้</a>
             <a class="menu-btn<?= $view === 'pending' ? ' active' : '' ?>" href="admin.php?view=pending">ยืนยันสิทธิ์การเข้าใช้</a>
             <a class="menu-btn<?= $view === 'delete_year' ? ' active' : '' ?>" href="admin.php?view=delete_year">ลบปีข้อมูลนสต</a>
+            <a class="menu-btn<?= $view === 'audit_log' ? ' active' : '' ?>" href="admin.php?view=audit_log">ประวัติการใช้งาน</a>
         </aside>
 
         <main class="content">
@@ -602,6 +800,88 @@ if ($view === 'pending') {
                         </tbody>
                     </table>
                 </div>
+            <?php elseif ($view === 'audit_log'): ?>
+                <div class="admin-toolbar">
+                    <div class="admin-summary">ใช้ติดตามย้อนหลังว่าใครทำอะไร เวลาไหน และมาจาก IP ใด</div>
+                </div>
+
+                <div class="audit-filter-bar">
+                    <?php foreach ($auditFilterMap as $filterKey => $filterConfig): ?>
+                        <a class="audit-filter-chip<?= $filterKey === $auditFilter ? ' active' : '' ?>" href="admin.php?view=audit_log&audit_filter=<?= $h($filterKey) ?>">
+                            <?= $h((string) $filterConfig['label']) ?>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>เวลา</th>
+                                <th>ผู้ใช้</th>
+                                <th>รายการ</th>
+                                <th>เป้าหมาย</th>
+                                <th>รายละเอียด</th>
+                                <th>IP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!$auditRows): ?>
+                                <tr>
+                                    <td colspan="6" class="empty-row">ยังไม่มีข้อมูล Audit Log</td>
+                                </tr>
+                            <?php endif; ?>
+                            <?php foreach ($auditRows as $auditRow): ?>
+                                <?php
+                                $detailsText = '-';
+                                $decodedDetails = json_decode((string) ($auditRow['details'] ?? ''), true);
+                                if (is_array($decodedDetails) && $decodedDetails !== []) {
+                                    $detailParts = [];
+                                    foreach ($decodedDetails as $detailKey => $detailValue) {
+                                        if (is_array($detailValue)) {
+                                            $detailValue = implode(', ', array_map('strval', $detailValue));
+                                        }
+                                        $detailParts[] = (string) $detailKey . ': ' . (string) $detailValue;
+                                    }
+                                    $detailsText = implode(' | ', $detailParts);
+                                } elseif (trim((string) ($auditRow['details'] ?? '')) !== '') {
+                                    $detailsText = (string) $auditRow['details'];
+                                }
+                                $auditTarget = trim((string) ($auditRow['target_type'] ?? ''));
+                                $auditTargetId = trim((string) ($auditRow['target_id'] ?? ''));
+                                ?>
+                                <tr>
+                                    <td><?= $h((string) ($auditRow['created_at'] ?? '-')) ?></td>
+                                    <td>
+                                        <div class="audit-meta">
+                                            <strong><?= $h((string) ($auditRow['username'] ?? '-')) ?></strong>
+                                            <span><?= $h((string) ($auditRow['role'] ?? '-')) ?></span>
+                                        </div>
+                                    </td>
+                                    <td><span class="audit-action"><?= $h((string) ($auditRow['action'] ?? '-')) ?></span></td>
+                                    <td>
+                                        <div class="audit-meta">
+                                            <strong><?= $h($auditTarget !== '' ? $auditTarget : '-') ?></strong>
+                                            <span><?= $h($auditTargetId !== '' ? $auditTargetId : '-') ?></span>
+                                        </div>
+                                    </td>
+                                    <td class="audit-details"><?= $h($detailsText) ?></td>
+                                    <td><?= $h((string) ($auditRow['ip_address'] ?? '-')) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <?php if ($auditTotalPages > 1): ?>
+                    <div class="audit-pagination">
+                        <?php for ($page = 1; $page <= $auditTotalPages; $page++): ?>
+                            <a class="audit-page-btn<?= $page === $auditPage ? ' active' : '' ?>" href="admin.php?view=audit_log&audit_filter=<?= $h($auditFilter) ?>&page=<?= $page ?>">
+                                <?= $page ?>
+                            </a>
+                        <?php endfor; ?>
+                    </div>
+                <?php endif; ?>
             <?php else: ?>
                 <div class="admin-toolbar">
                     <div class="admin-summary">จัดการข้อมูลผู้ใช้งานที่อยู่ในระบบจากหน้าเดียว</div>

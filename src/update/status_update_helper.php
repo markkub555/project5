@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/applicant_notes.php';
 require_once __DIR__ . '/../includes/bootstrap.php';
+require_once __DIR__ . '/../includes/audit_log.php';
 
 function handleStatusUpdate(
     PDO $conn,
@@ -204,6 +205,19 @@ function handleStatusUpdate(
         }
 
         $conn->commit();
+
+        if ($updated > 0) {
+            auditLog(
+                $conn,
+                'update_stage_status',
+                'stage',
+                $statusColumn,
+                ['updated' => $updated, 'stage' => $statusColumn],
+                (int) ($_SESSION['user_login'] ?? 0),
+                null,
+                'user'
+            );
+        }
 
         echo json_encode([
             'success' => true,

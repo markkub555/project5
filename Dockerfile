@@ -6,7 +6,7 @@ RUN apt-get update \
         unzip \
         zip \
     && docker-php-ext-install pdo pdo_mysql mysqli zip opcache \
-    && a2enmod rewrite \
+    && a2enmod rewrite headers \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www/html
