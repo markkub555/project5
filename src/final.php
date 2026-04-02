@@ -241,6 +241,26 @@ usort($stageSummary, static function (array $a, array $b): int {
             min-height: 0;
         }
 
+        @media (min-width: 1280px) {
+            .hero {
+                align-items: stretch;
+            }
+
+            .kpi-row {
+                min-width: 360px;
+            }
+        }
+
+        @media (min-width: 1600px) {
+            .panel {
+                --chart-h: 390px;
+            }
+
+            .hero-title {
+                font-size: 24px;
+            }
+        }
+
         .panel-head {
             display: flex;
             justify-content: space-between;
@@ -359,6 +379,67 @@ usort($stageSummary, static function (array $a, array $b): int {
 
             .panel-grid {
                 grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 720px) {
+            body {
+                overflow: auto;
+            }
+
+            .layout {
+                height: auto;
+            }
+
+            .content {
+                overflow: visible;
+                height: auto;
+            }
+
+            .hero {
+                padding: 10px;
+            }
+
+            .hero-title {
+                font-size: 18px;
+            }
+
+            .hero-subtitle {
+                font-size: 0.84rem;
+            }
+
+            .panel {
+                --chart-h: 280px;
+                padding: 10px;
+            }
+
+            .panel-title {
+                font-size: 1rem;
+            }
+
+            .insight-card {
+                height: auto;
+                min-height: var(--chart-h);
+            }
+        }
+
+        @media (max-width: 560px) {
+            .kpi {
+                padding: 8px;
+                gap: 8px;
+            }
+
+            .kpi-value {
+                font-size: 1rem;
+            }
+
+            .legend-row {
+                gap: 10px;
+                font-size: 0.78rem;
+            }
+
+            .panel {
+                --chart-h: 240px;
             }
         }
     </style>

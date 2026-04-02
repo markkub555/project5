@@ -251,7 +251,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') =
     foreach ($exportRows as $index => $exportRow) {
         $rank = $index + 1;
         $fullName = trim((string) ($exportRow['prefix'] ?? '') . (string) ($exportRow['firstname'] ?? '') . ' ' . (string) ($exportRow['lastname'] ?? ''));
-        $statusText = $selectedCount > 0 && $rank <= $selectedCount ? 'ผู้ได้รับการคัดเลือก' : 'สำรอง';
+        $reserveNumber = max(0, $rank - max(0, $selectedCount));
+        $statusText = $selectedCount > 0 && $rank <= $selectedCount
+            ? 'ผู้ได้รับการคัดเลือก'
+            : 'สำรองคนที่ ' . $reserveNumber;
 
         echo '<tr>';
         echo '<td>' . $h((string) $rank) . '</td>';
@@ -434,7 +437,7 @@ if ($endPage - $startPage + 1 < $range) {
                                     <td><?= $h((string) $row['idcode']) ?></td>
                                     <td class="name-cell" style="text-align:left;padding-left:14px;"><?= $h(trim(($row['prefix'] ?? '') . ($row['firstname'] ?? '') . ' ' . ($row['lastname'] ?? ''))) ?></td>
                                     <td><?= $row['score'] === null || $row['score'] === '' ? '-' : $h(number_format((float) $row['score'], 2, '.', '')) ?></td>
-                                    <td><?= $selectedCount > 0 && $rank <= $selectedCount ? 'ผู้ได้รับการคัดเลือก' : 'สำรอง' ?></td>
+                                    <td><?= $selectedCount > 0 && $rank <= $selectedCount ? 'ผู้ได้รับการคัดเลือก' : 'สำรองคนที่ ' . max(0, $rank - max(0, $selectedCount)) ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>

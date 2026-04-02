@@ -33,6 +33,13 @@ function handleStatusUpdate(
 
     header('Content-Type: application/json; charset=UTF-8');
 
+    $activeExamYear = trim((string) ($_SESSION['exam_year'] ?? ''));
+    if ($activeExamYear === '') {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Missing exam year']);
+        return;
+    }
+
     if (!preg_match('/^[a-zA-Z0-9_]+$/', $statusColumn) || !preg_match('/^[a-zA-Z0-9_]+$/', $noteColumn)) {
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => 'Invalid config']);
@@ -110,7 +117,8 @@ function handleStatusUpdate(
         $stmt = $conn->prepare(
             "UPDATE applicantname
              SET $statusColumn = :status
-             WHERE id = :id"
+             WHERE id = :id
+               AND exam_year = :exam_year"
         );
         $noteUpsertStmt = $conn->prepare(
             'INSERT INTO applicant_notes (exam_year, applicant_id, stage_key, note)
@@ -127,10 +135,11 @@ function handleStatusUpdate(
         );
         $candidateIds = array_values(array_unique(array_column($candidates, 'id')));
         $guardPlaceholders = implode(',', array_fill(0, count($candidateIds), '?'));
-        $guardSql = 'SELECT id, exam_year, ' . implode(', ', $stageOrder) . " FROM applicantname WHERE id IN ($guardPlaceholders)";
+        $guardSql = 'SELECT id, exam_year, ' . implode(', ', $stageOrder) . " FROM applicantname WHERE exam_year = ? AND id IN ($guardPlaceholders)";
         $stageGuardStmt = $conn->prepare($guardSql);
+        $stageGuardStmt->bindValue(1, $activeExamYear, PDO::PARAM_STR);
         foreach ($candidateIds as $idx => $candidateId) {
-            $stageGuardStmt->bindValue($idx + 1, $candidateId, PDO::PARAM_INT);
+            $stageGuardStmt->bindValue($idx + 2, $candidateId, PDO::PARAM_INT);
         }
         $stageGuardStmt->execute();
         $guardRows = $stageGuardStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -181,6 +190,7 @@ function handleStatusUpdate(
             $stmt->execute([
                 ':status' => $status,
                 ':id' => $id,
+                ':exam_year' => $activeExamYear,
             ]);
 
             $examYear = trim((string) ($guardRow['exam_year'] ?? ''));

@@ -919,9 +919,49 @@ if ($view === 'pending') {
             border-color: var(--brand);
         }
 
+        @media (min-width: 1280px) {
+            .audit-details {
+                max-width: 420px;
+            }
+        }
+
         @media (max-width: 720px) {
+            .admin-modal {
+                padding: 10px;
+            }
+
+            .admin-modal-box {
+                padding: 14px;
+                border-radius: 14px;
+            }
+
             .admin-form-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .audit-details {
+                max-width: none;
+                min-width: 220px;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .admin-toolbar {
+                align-items: flex-start;
+            }
+
+            .admin-edit-btn,
+            .admin-status-btn,
+            .admin-delete-btn,
+            .admin-cancel-btn,
+            .admin-save-btn {
+                width: 100%;
+            }
+
+            .audit-filter-chip,
+            .audit-page-btn {
+                flex: 1 1 calc(50% - 8px);
+                text-align: center;
             }
         }
     </style>

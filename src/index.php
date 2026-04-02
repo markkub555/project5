@@ -91,6 +91,46 @@ ensureUserResetSchema($conn);
     .btn-custom:hover {
         background-color: #600000;
     }
+
+    @media (max-width: 768px) {
+        body {
+            padding: 14px;
+            align-items: flex-start;
+        }
+
+        .register-card {
+            padding: 28px 22px;
+            max-width: 100%;
+        }
+
+        .header-section img {
+            width: 260px;
+            max-width: 100%;
+        }
+
+        .system-title {
+            font-size: 22px;
+        }
+    }
+
+    @media (max-width: 576px) {
+        body {
+            padding: 10px;
+        }
+
+        .register-card {
+            padding: 20px 16px;
+            border-radius: 14px;
+        }
+
+        .system-title {
+            font-size: 20px;
+        }
+
+        .btn-custom {
+            padding: 12px;
+        }
+    }
     </style>
 </head>
 

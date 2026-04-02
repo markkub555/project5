@@ -214,6 +214,22 @@ $columns = [
             flex: 1;
             min-height: 0;
         }
+
+        .summary-table-wrap table {
+            min-width: 980px;
+        }
+
+        @media (min-width: 1440px) {
+            .summary-table-wrap table {
+                min-width: 1120px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .summary-table-wrap table {
+                min-width: 860px;
+            }
+        }
     </style>
 </head>
 

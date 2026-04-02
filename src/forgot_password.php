@@ -303,6 +303,44 @@ if (isset($_SESSION['forgot_reset_email'], $_SESSION['forgot_reset_token']) && $
             padding: 16px;
             margin-top: 12px;
         }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 14px;
+                align-items: flex-start;
+            }
+
+            .forgot-card {
+                padding: 28px 22px;
+            }
+
+            .header-section img {
+                width: 240px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            body {
+                padding: 10px;
+            }
+
+            .forgot-card {
+                padding: 20px 16px;
+                border-radius: 14px;
+            }
+
+            .system-title {
+                font-size: 20px;
+            }
+
+            .system-subtitle {
+                font-size: 0.85rem;
+            }
+
+            .soft-box {
+                padding: 12px;
+            }
+        }
     </style>
 </head>
 

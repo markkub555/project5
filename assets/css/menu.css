@@ -190,8 +190,22 @@ body {
         padding: 10px 12px;
     }
 
+    .brand-wrap {
+        width: 100%;
+    }
+
+    .logo {
+        width: 52px;
+        height: 52px;
+    }
+
     .brand-wrap p {
         display: none;
+    }
+
+    .year-badge {
+        width: 100%;
+        text-align: center;
     }
 
     .panel-head {
@@ -201,5 +215,48 @@ body {
 
     .grid {
         grid-template-columns: repeat(2, minmax(120px, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .container {
+        margin: 10px auto;
+        padding: 0 8px 12px;
+    }
+
+    .menu-panel {
+        border-radius: 16px;
+        padding: 10px;
+    }
+
+    .panel-head h2 {
+        font-size: 0.95rem;
+    }
+
+    .panel-head p,
+    .back-link,
+    .year-badge {
+        font-size: 0.76rem;
+    }
+
+    .grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .menu-card {
+        padding: 10px 8px;
+        border-radius: 14px;
+    }
+
+    .icon-wrap {
+        width: 62px;
+        height: 62px;
+        border-radius: 12px;
+    }
+
+    .menu-title {
+        font-size: 0.8rem;
+        min-height: 2.2em;
     }
 }

@@ -19,14 +19,15 @@ secureSessionStart();
 
     <style>
     body {
-        height: 85vh;
+        min-height: 100vh;
         margin: 0;
         background-color: #f5f0f0;
         background-image: url('upload/5-login.jpg');
         background-repeat: no-repeat;
-        background-position: 0% center;
-        background-size: 100%;
+        background-position: center;
+        background-size: cover;
         position: relative;
+        padding: 16px;
     }
 
     .login-card {
@@ -50,12 +51,40 @@ secureSessionStart();
         border-color: #8b0000;
         color: #ffffff;
     }
+
+    .login-shell {
+        width: 100%;
+        max-width: 420px;
+    }
+
+    @media (max-width: 576px) {
+        body {
+            align-items: stretch !important;
+            padding: 12px;
+        }
+
+        .login-shell {
+            max-width: none;
+            display: flex;
+            align-items: center;
+        }
+
+        .login-card {
+            width: 100%;
+            padding: 1.1rem !important;
+            border-radius: 14px;
+        }
+
+        .text-center h3 {
+            font-size: 1.35rem;
+        }
+    }
     </style>
 </head>
 
 <body class="d-flex align-items-center justify-content-center">
 
-    <div class="col-md-4">
+    <div class="login-shell">
         <div class="card login-card p-4">
 
             <div class="text-center mb-4">

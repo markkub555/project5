@@ -282,6 +282,16 @@ $formatYearLabel = static function ($year): string {
             gap: 8px;
         }
 
+        @media (min-width: 1280px) {
+            .page {
+                width: min(1180px, 100%);
+            }
+
+            .year-grid {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            }
+        }
+
         .year-btn {
             border: 1px solid #d4dbe8;
             background: #fff;
@@ -331,6 +341,52 @@ $formatYearLabel = static function ($year): string {
 
             .header-right {
                 width: 100%;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .header-meta strong {
+                font-size: 0.98rem;
+            }
+
+            .page {
+                margin: 12px auto;
+                padding: 0 8px 12px;
+            }
+
+            .import-panel,
+            .year-panel {
+                padding: 12px;
+            }
+
+            .file-trigger,
+            .input,
+            .submit-btn {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .logo {
+                width: 52px;
+                height: 52px;
+            }
+
+            .brand-wrap h1 {
+                font-size: 0.92rem;
+            }
+
+            .header-meta span {
+                font-size: 0.76rem;
+            }
+
+            .year-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .year-btn {
+                font-size: 0.82rem;
+                padding: 9px 6px;
             }
         }
     </style>

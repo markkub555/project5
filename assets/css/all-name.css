@@ -27,6 +27,11 @@ body {
     overflow: hidden;
 }
 
+img {
+    max-width: 100%;
+    height: auto;
+}
+
 .top-header {
     display: flex;
     justify-content: space-between;
@@ -45,6 +50,7 @@ body {
     display: flex;
     align-items: center;
     gap: 14px;
+    min-width: 0;
 }
 
 .logo-link {
@@ -189,6 +195,7 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    min-width: 0;
     overflow: hidden;
 }
 
@@ -423,6 +430,8 @@ tr:hover td {
     .layout {
         grid-template-columns: 1fr;
         height: calc(100dvh - var(--header-h));
+        gap: 10px;
+        padding: 10px;
     }
 
     .sidebar {
@@ -448,10 +457,26 @@ tr:hover td {
 }
 
 @media (max-width: 720px) {
+    body {
+        height: auto;
+        min-height: 100dvh;
+        overflow: auto;
+    }
+
     .top-header {
         flex-direction: column;
         align-items: flex-start;
         padding: 8px 12px;
+    }
+
+    .brand-wrap {
+        width: 100%;
+        align-items: flex-start;
+    }
+
+    .logo {
+        width: 52px;
+        height: 52px;
     }
 
     .header-meta {
@@ -464,10 +489,18 @@ tr:hover td {
 
     .search-box {
         width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        border-radius: 16px;
     }
 
     .search-box input {
         min-width: 0;
+        width: 100%;
+    }
+
+    .search-box .btn,
+    .search-box button {
         width: 100%;
     }
 
@@ -477,17 +510,89 @@ tr:hover td {
     }
 
     .layout {
-        height: calc(100dvh - 122px);
+        height: auto;
+        min-height: 0;
+        padding: 8px;
     }
 
     .header-right {
         width: 100%;
         justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
     }
 
     .profile-card {
         right: auto;
         left: 0;
+    }
+
+    .content {
+        overflow: visible;
+    }
+
+    .table-wrap {
+        max-width: 100%;
+    }
+
+    th,
+    td {
+        padding: 7px 8px;
+        font-size: 0.76rem;
+    }
+
+    .pagination-wrap,
+    .pagination-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+@media (max-width: 560px) {
+    .top-header {
+        gap: 10px;
+    }
+
+    .brand-wrap h1 {
+        font-size: 0.9rem;
+    }
+
+    .header-meta strong {
+        font-size: 0.94rem;
+    }
+
+    .header-meta span {
+        font-size: 0.74rem;
+    }
+
+    .sidebar {
+        border-radius: 12px;
+        padding: 6px;
+    }
+
+    .menu-btn {
+        font-size: 0.77rem;
+        padding: 7px 9px;
+    }
+
+    .content {
+        border-radius: 14px;
+        padding: 8px;
+    }
+
+    .toolbar,
+    .toolbar-actions {
+        gap: 6px;
+    }
+
+    .search-box {
+        gap: 6px;
+        padding: 8px 10px;
+    }
+
+    .status-bar .badge {
+        width: 100%;
+        text-align: center;
     }
 }
 
@@ -570,4 +675,54 @@ tr:hover td {
 
 .logout-btn:hover {
     background: #ffe4e6;
+}
+
+@media (min-width: 1100px) and (max-width: 1365px) {
+    .layout {
+        grid-template-columns: 220px minmax(0, 1fr);
+    }
+
+    .menu-btn {
+        font-size: 0.8rem;
+    }
+
+    table {
+        font-size: 0.77rem;
+    }
+}
+
+@media (min-width: 1366px) and (max-width: 1599px) {
+    .layout {
+        grid-template-columns: 240px minmax(0, 1fr);
+        padding: 12px 14px;
+    }
+
+    .content {
+        padding: 12px;
+    }
+}
+
+@media (min-width: 1600px) {
+    .layout {
+        grid-template-columns: 260px minmax(0, 1fr);
+        gap: 18px;
+        padding: 14px 16px;
+    }
+
+    .sidebar {
+        padding: 12px;
+    }
+
+    .content {
+        padding: 14px;
+    }
+
+    table {
+        font-size: 0.82rem;
+    }
+
+    th,
+    td {
+        padding: 6px 9px;
+    }
 }
