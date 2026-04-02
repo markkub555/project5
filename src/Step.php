@@ -263,8 +263,13 @@ $columns = [
                     <?php if ($userProfile['username'] !== ''): ?>
                         <p class="profile-username">@<?= $h($userProfile['username']) ?></p>
                     <?php endif; ?>
-                    <a class="logout-btn" href="logout.php">
-                        <i class="bi bi-box-arrow-right"></i>
+                    <div class="profile-actions">
+                    <a class="profile-menu-item profile-menu-item-primary" href="profile.php" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:12px;border:1px solid #dbe4f0;background:linear-gradient(180deg,#ffffff,#f8fafc);color:#334155 !important;text-decoration:none !important;font-size:.84rem;font-weight:700;line-height:1.2;box-shadow:0 6px 14px rgba(15,23,42,.06);">
+                        <i class="bi bi-pencil-square" style="color:#334155 !important;"></i>
+                        <span style="color:#334155 !important;">แก้โปรไฟล์</span>
+                    </a>
+                    <a class="profile-menu-item profile-menu-item-danger" href="logout.php" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:12px;border:1px solid #fecaca;background:linear-gradient(180deg,#fff7f7,#fff1f2);color:#b91c1c !important;text-decoration:none !important;font-size:.84rem;font-weight:700;line-height:1.2;box-shadow:0 6px 14px rgba(185,28,28,.08);">
+                        <i class="bi bi-box-arrow-right" style="color:#b91c1c !important;"></i>
                         Logout
                     </a>
                 </div>
