@@ -76,6 +76,8 @@ if (isset($_GET['selected_count'])) {
 $importedRowsCount = 0;
 $hasImportedData = false;
 $excludedFailCount = 0;
+$suspiciousRows = [];
+$suspiciousCount = 0;
 $allnameExpr = applicantAllnameExpr($applicantSchema, 'applicantname');
 $failedApplicantsSubquery = "
     SELECT applicantname.idcode
@@ -103,6 +105,62 @@ if ($examYear !== '') {
             ':fail_exam_year' => $examYear,
         ]);
         $excludedFailCount = (int) $excludedFailStmt->fetchColumn();
+
+        $selectedNameExpr = "REPLACE(TRIM(CONCAT(COALESCE(si.firstname, ''), COALESCE(si.lastname, ''))), ' ', '')";
+        $applicantNameExpr = "REPLACE(TRIM(CONCAT(COALESCE(applicantname.firstname, ''), COALESCE(applicantname.lastname, ''))), ' ', '')";
+
+        $suspiciousCountStmt = $conn->prepare("
+            SELECT COUNT(*)
+            FROM selected_imports si
+            INNER JOIN applicantname
+                ON applicantname.exam_year = si.exam_year
+               AND applicantname.id <> 'id'
+               AND $applicantNameExpr = $selectedNameExpr
+               AND applicantname.idcode <> si.idcode
+            LEFT JOIN applicantname exact_match
+                ON exact_match.exam_year = si.exam_year
+               AND exact_match.id <> 'id'
+               AND exact_match.idcode = si.idcode
+            WHERE si.exam_year = :exam_year
+              AND exact_match.id IS NULL
+        ");
+        $suspiciousCountStmt->execute([':exam_year' => $examYear]);
+        $suspiciousCount = (int) $suspiciousCountStmt->fetchColumn();
+
+        if ($suspiciousCount > 0) {
+            $suspiciousStmt = $conn->prepare("
+                SELECT
+                    si.row_no,
+                    si.idcode AS import_idcode,
+                    si.prefix AS import_prefix,
+                    si.firstname AS import_firstname,
+                    si.lastname AS import_lastname,
+                    applicantname.idcode AS matched_idcode,
+                    applicantname.prefix AS matched_prefix,
+                    applicantname.firstname AS matched_firstname,
+                    applicantname.lastname AS matched_lastname,
+                    $allnameExpr AS matched_status
+                FROM selected_imports si
+                INNER JOIN applicantname
+                    ON applicantname.exam_year = si.exam_year
+                   AND applicantname.id <> 'id'
+                   AND $applicantNameExpr = $selectedNameExpr
+                   AND applicantname.idcode <> si.idcode
+                LEFT JOIN applicantname exact_match
+                    ON exact_match.exam_year = si.exam_year
+                   AND exact_match.id <> 'id'
+                   AND exact_match.idcode = si.idcode
+                WHERE si.exam_year = :exam_year
+                  AND exact_match.id IS NULL
+                GROUP BY si.row_no, si.idcode, si.prefix, si.firstname, si.lastname,
+                         applicantname.idcode, applicantname.prefix, applicantname.firstname, applicantname.lastname, matched_status
+                ORDER BY si.row_no ASC
+                LIMIT 20
+            ");
+            $suspiciousStmt->execute([':exam_year' => $examYear]);
+            $suspiciousRows = $suspiciousStmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+
     }
 }
 
@@ -363,13 +421,52 @@ if ($endPage - $startPage + 1 < $range) {
                 </div>
             <?php endif; ?>
 
+            <?php if ($suspiciousCount > 0): ?>
+                <div class="alert alert-warning mb-3">
+                    พบรายการต้องตรวจสอบ <?= number_format($suspiciousCount) ?> รายการ:
+                    เลขสอบในไฟล์คัดเลือกไม่ตรงกับข้อมูลในระบบ แต่ชื่อ-นามสกุลตรงกัน
+                </div>
+                <div class="table-wrap" style="margin-bottom:14px;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ลำดับไฟล์</th>
+                                <th>เลขสอบในไฟล์</th>
+                                <th>ชื่อ-สกุลในไฟล์</th>
+                                <th>เลขสอบในระบบ</th>
+                                <th>ชื่อ-สกุลในระบบ</th>
+                                <th>สถานะในระบบ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($suspiciousRows as $suspiciousRow): ?>
+                                <?php
+                                $importFullname = trim((string) ($suspiciousRow['import_prefix'] ?? '') . (string) ($suspiciousRow['import_firstname'] ?? '') . ' ' . (string) ($suspiciousRow['import_lastname'] ?? ''));
+                                $matchedFullname = trim((string) ($suspiciousRow['matched_prefix'] ?? '') . (string) ($suspiciousRow['matched_firstname'] ?? '') . ' ' . (string) ($suspiciousRow['matched_lastname'] ?? ''));
+                                $matchedStatus = strtoupper(trim((string) ($suspiciousRow['matched_status'] ?? 'W')));
+                                $matchedStatusText = $matchedStatus === 'F' ? 'ไม่ผ่าน' : ($matchedStatus === 'P' ? 'ผ่าน' : 'รอดำเนินการ');
+                                ?>
+                                <tr>
+                                    <td><?= $h((string) ($suspiciousRow['row_no'] ?? '-')) ?></td>
+                                    <td><?= $h((string) ($suspiciousRow['import_idcode'] ?? '-')) ?></td>
+                                    <td class="name-cell" style="text-align:left;padding-left:14px;"><?= $h($importFullname) ?></td>
+                                    <td><?= $h((string) ($suspiciousRow['matched_idcode'] ?? '-')) ?></td>
+                                    <td class="name-cell" style="text-align:left;padding-left:14px;"><?= $h($matchedFullname) ?></td>
+                                    <td><?= $h($matchedStatusText) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+
             <div class="toolbar">
                 <form method="post" action="import_selected.php" enctype="multipart/form-data" class="search-box">
                     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
                     <input type="hidden" name="exam_year" value="<?= $h($examYear) ?>">
                     <i class="bi bi-file-earmark-arrow-up-fill"></i>
                     <input type="file" name="selected_file" accept=".xls,.xlsx,.csv" required>
-                    <button type="submit" class="btn btn-sm btn-danger">Import ไฟล์คัดเลือก</button>
+                    <button type="submit" class="btn btn-sm btn-danger">Importไฟล์คะแนน</button>
                 </form>
 
                 <?php if ($hasImportedData): ?>
