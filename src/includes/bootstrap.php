@@ -4,6 +4,24 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/env.php';
 
+function runtimeStorageDir(): string
+{
+    $baseDir = dirname(__DIR__, 2) . '/storage/runtime';
+    if (!is_dir($baseDir)) {
+        @mkdir($baseDir, 0775, true);
+    }
+
+    if (!is_dir($baseDir) || !is_writable($baseDir)) {
+        $fallbackDir = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'project5_runtime';
+        if (!is_dir($fallbackDir)) {
+            @mkdir($fallbackDir, 0775, true);
+        }
+        return $fallbackDir;
+    }
+
+    return $baseDir;
+}
+
 function isHttpsRequest(): bool
 {
     if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
@@ -89,7 +107,7 @@ function consumeRateLimit(string $bucket, int $limit, int $windowSeconds, ?strin
 {
     $identity = $key !== null && $key !== '' ? $key : clientIpAddress();
     $hash = hash('sha256', $bucket . '|' . $identity);
-    $file = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'project5_rate_' . $hash . '.json';
+    $file = runtimeStorageDir() . DIRECTORY_SEPARATOR . 'project5_rate_' . $hash . '.json';
     $now = time();
     $payload = [
         'count' => 0,
@@ -113,11 +131,11 @@ function consumeRateLimit(string $bucket, int $limit, int $windowSeconds, ?strin
     }
 
     if ($payload['count'] >= $limit) {
-        file_put_contents($file, json_encode($payload), LOCK_EX);
+        @file_put_contents($file, json_encode($payload), LOCK_EX);
         return false;
     }
 
     $payload['count']++;
-    file_put_contents($file, json_encode($payload), LOCK_EX);
+    @file_put_contents($file, json_encode($payload), LOCK_EX);
     return true;
 }

@@ -120,9 +120,28 @@ function renderStatusPage(array $config): void
     }
 
     if ($search !== '') {
-        $whereParts[] = '(applicantname.idcode LIKE :search OR applicantname.firstname LIKE :search OR applicantname.lastname LIKE :search)';
-        $queryParams[':search'] = '%' . $search . '%';
-        $listQueryParams[':search'] = '%' . $search . '%';
+        $searchNormalized = preg_replace('/\s+/u', ' ', $search) ?? $search;
+        $searchCompact = preg_replace('/\s+/u', '', $search) ?? $search;
+        $whereParts[] = "(
+            applicantname.idcode LIKE :search_idcode
+            OR applicantname.prefix LIKE :search_prefix
+            OR applicantname.firstname LIKE :search_firstname
+            OR applicantname.lastname LIKE :search_lastname
+            OR CONCAT_WS(' ', applicantname.prefix, applicantname.firstname, applicantname.lastname) LIKE :search_fullname
+            OR REPLACE(CONCAT_WS('', applicantname.prefix, applicantname.firstname, applicantname.lastname), ' ', '') LIKE :search_compact
+        )";
+        $queryParams[':search_idcode'] = '%' . $searchNormalized . '%';
+        $queryParams[':search_prefix'] = '%' . $searchNormalized . '%';
+        $queryParams[':search_firstname'] = '%' . $searchNormalized . '%';
+        $queryParams[':search_lastname'] = '%' . $searchNormalized . '%';
+        $queryParams[':search_fullname'] = '%' . $searchNormalized . '%';
+        $queryParams[':search_compact'] = '%' . $searchCompact . '%';
+        $listQueryParams[':search_idcode'] = '%' . $searchNormalized . '%';
+        $listQueryParams[':search_prefix'] = '%' . $searchNormalized . '%';
+        $listQueryParams[':search_firstname'] = '%' . $searchNormalized . '%';
+        $listQueryParams[':search_lastname'] = '%' . $searchNormalized . '%';
+        $listQueryParams[':search_fullname'] = '%' . $searchNormalized . '%';
+        $listQueryParams[':search_compact'] = '%' . $searchCompact . '%';
     }
 
     $listQueryParams[':note_stage_key'] = $noteStageKey;

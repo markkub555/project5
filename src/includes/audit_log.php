@@ -45,7 +45,13 @@ function cleanupOldAuditLogs(PDO $conn, int $retentionDays = 180): void
     $done = true;
 
     $retentionDays = max(30, $retentionDays);
-    $cleanupMarker = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR)
+    $runtimeDir = function_exists('runtimeStorageDir')
+        ? runtimeStorageDir()
+        : dirname(__DIR__, 2) . '/storage/runtime';
+    if (!is_dir($runtimeDir)) {
+        @mkdir($runtimeDir, 0775, true);
+    }
+    $cleanupMarker = rtrim($runtimeDir, DIRECTORY_SEPARATOR)
         . DIRECTORY_SEPARATOR
         . 'project5_audit_cleanup_' . date('Ymd') . '.lock';
 

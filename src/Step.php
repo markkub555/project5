@@ -100,8 +100,22 @@ if (in_array($statusFilter, ['P', 'F', 'W'], true)) {
 }
 
 if ($search !== '') {
-    $whereParts[] = '(idcode LIKE :search OR firstname LIKE :search OR lastname LIKE :search)';
-    $params[':search'] = '%' . $search . '%';
+    $searchNormalized = preg_replace('/\s+/u', ' ', $search) ?? $search;
+    $searchCompact = preg_replace('/\s+/u', '', $search) ?? $search;
+    $whereParts[] = "(
+        idcode LIKE :search_idcode
+        OR prefix LIKE :search_prefix
+        OR firstname LIKE :search_firstname
+        OR lastname LIKE :search_lastname
+        OR CONCAT_WS(' ', prefix, firstname, lastname) LIKE :search_fullname
+        OR REPLACE(CONCAT_WS('', prefix, firstname, lastname), ' ', '') LIKE :search_compact
+    )";
+    $params[':search_idcode'] = '%' . $searchNormalized . '%';
+    $params[':search_prefix'] = '%' . $searchNormalized . '%';
+    $params[':search_firstname'] = '%' . $searchNormalized . '%';
+    $params[':search_lastname'] = '%' . $searchNormalized . '%';
+    $params[':search_fullname'] = '%' . $searchNormalized . '%';
+    $params[':search_compact'] = '%' . $searchCompact . '%';
 }
 
 $whereSql = implode(' AND ', $whereParts);

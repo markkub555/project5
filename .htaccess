@@ -10,6 +10,7 @@ Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains
 </IfModule>
 
 RewriteRule ^(database|docs|scripts|docker)(/|$) - [F,L]
+RewriteRule ^storage(/|$) - [F,L]
 RewriteRule ^src/(config|includes|vendor)(/|$) - [F,L]
 RewriteRule ^(\.env(\..*)?|docker-compose(-win)?\.yml|Dockerfile|\.dockerignore)$ - [F,L]
 RewriteRule ^src/ - [L]

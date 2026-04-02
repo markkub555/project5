@@ -496,7 +496,7 @@ usort($stageSummary, static function (array $a, array $b): int {
         </main>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+    <script src="assets/vendor/chart.js/chart.umd.min.js" defer></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const canvas = document.getElementById('examChart');

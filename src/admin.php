@@ -41,6 +41,102 @@ $formatAuditValue = static function ($value): string {
     return $statusMap[$text] ?? $text;
 };
 
+$getExamYearScopedTables = static function (PDO $conn): array {
+    static $cache = null;
+    if (is_array($cache)) {
+        return $cache;
+    }
+
+    $tables = [];
+
+    try {
+        $dbNameStmt = $conn->query('SELECT DATABASE()');
+        $dbName = (string) $dbNameStmt->fetchColumn();
+        if ($dbName === '') {
+            $cache = [];
+            return $cache;
+        }
+
+        $stmt = $conn->prepare(
+            'SELECT TABLE_NAME
+             FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = :db AND COLUMN_NAME = :column
+             GROUP BY TABLE_NAME
+             ORDER BY TABLE_NAME ASC'
+        );
+        $stmt->execute([
+            ':db' => $dbName,
+            ':column' => 'exam_year',
+        ]);
+
+        $tables = array_values(array_filter(array_map(
+            static fn(array $row): string => trim((string) ($row['TABLE_NAME'] ?? '')),
+            $stmt->fetchAll(PDO::FETCH_ASSOC)
+        )));
+    } catch (Throwable $e) {
+        $tables = ['applicantname'];
+    }
+
+    usort($tables, static function (string $left, string $right): int {
+        $priority = [
+            'applicant_notes' => 1,
+            'selected_imports' => 2,
+            'applicantname' => 3,
+        ];
+
+        $leftPriority = $priority[$left] ?? 99;
+        $rightPriority = $priority[$right] ?? 99;
+        if ($leftPriority === $rightPriority) {
+            return strcmp($left, $right);
+        }
+
+        return $leftPriority <=> $rightPriority;
+    });
+
+    $cache = $tables;
+    return $cache;
+};
+
+$getExamYearUsageRows = static function (PDO $conn) use ($getExamYearScopedTables): array {
+    $tables = $getExamYearScopedTables($conn);
+    if ($tables === []) {
+        return [];
+    }
+
+    $summary = [];
+    foreach ($tables as $tableName) {
+        $sql = sprintf(
+            "SELECT TRIM(CAST(exam_year AS CHAR)) AS exam_year, COUNT(*) AS total_rows FROM `%s` WHERE exam_year IS NOT NULL AND TRIM(CAST(exam_year AS CHAR)) <> '' GROUP BY exam_year",
+            str_replace('`', '``', $tableName)
+        );
+
+        try {
+            $stmt = $conn->query($sql);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $examYearValue = trim((string) ($row['exam_year'] ?? ''));
+                if ($examYearValue === '') {
+                    continue;
+                }
+                $summary[$examYearValue] = ($summary[$examYearValue] ?? 0) + (int) ($row['total_rows'] ?? 0);
+            }
+        } catch (Throwable $e) {
+            continue;
+        }
+    }
+
+    krsort($summary, SORT_NATURAL);
+
+    $rows = [];
+    foreach ($summary as $examYearValue => $totalRows) {
+        $rows[] = [
+            'exam_year' => (string) $examYearValue,
+            'total_rows' => (int) $totalRows,
+        ];
+    }
+
+    return $rows;
+};
+
 $translateAuditRow = static function (array $auditRow) use ($formatAuditValue): array {
     $action = trim((string) ($auditRow['action'] ?? ''));
     $targetType = trim((string) ($auditRow['target_type'] ?? ''));
@@ -84,6 +180,11 @@ $translateAuditRow = static function (array $auditRow) use ($formatAuditValue): 
             $detailText = 'เพิ่มใหม่ ' . $formatAuditValue($details['inserted'] ?? 0)
                 . ' รายการ, อัปเดต ' . $formatAuditValue($details['updated'] ?? 0)
                 . ' รายการ, ข้าม ' . $formatAuditValue($details['skipped'] ?? 0) . ' รายการ';
+            break;
+        case 'import_selected_applicants':
+            $actionText = 'นำเข้าผู้ได้รับการคัดเลือก';
+            $targetText = $targetId !== '' ? 'นสต.รุ่นที่ ' . $targetId : 'ผู้ได้รับการคัดเลือก';
+            $detailText = 'นำเข้า ' . $formatAuditValue($details['rows'] ?? 0) . ' รายการ';
             break;
         case 'admin_update_user':
             $actionText = 'แก้ไขข้อมูลผู้ใช้';
@@ -322,26 +423,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($deleteExamYear === '') {
             $formError = 'ไม่พบปี นสต. ที่ต้องการลบ';
         } else {
-            $countYearStmt = $conn->prepare('SELECT COUNT(*) FROM applicantname WHERE exam_year = :exam_year');
-            $countYearStmt->execute([':exam_year' => $deleteExamYear]);
-            $rowCount = (int) $countYearStmt->fetchColumn();
+            $examYearTables = $getExamYearScopedTables($conn);
+            $deletedByTable = [];
+            $deletedRows = 0;
 
-            if ($rowCount <= 0) {
-                $formError = 'ไม่พบข้อมูลของปี นสต. ที่เลือก';
-            } else {
-                $deleteYearStmt = $conn->prepare('DELETE FROM applicantname WHERE exam_year = :exam_year');
-                $deleteYearStmt->execute([':exam_year' => $deleteExamYear]);
+            try {
+                $conn->beginTransaction();
 
-                if (isset($_SESSION['exam_year']) && (string) $_SESSION['exam_year'] === $deleteExamYear) {
-                    unset($_SESSION['exam_year']);
+                foreach ($examYearTables as $tableName) {
+                    $countSql = sprintf(
+                        'SELECT COUNT(*) FROM `%s` WHERE TRIM(CAST(exam_year AS CHAR)) = :exam_year',
+                        str_replace('`', '``', $tableName)
+                    );
+                    $countStmt = $conn->prepare($countSql);
+                    $countStmt->execute([':exam_year' => $deleteExamYear]);
+                    $tableRowCount = (int) $countStmt->fetchColumn();
+
+                    if ($tableRowCount <= 0) {
+                        continue;
+                    }
+
+                    $deleteSql = sprintf(
+                        'DELETE FROM `%s` WHERE TRIM(CAST(exam_year AS CHAR)) = :exam_year',
+                        str_replace('`', '``', $tableName)
+                    );
+                    $deleteStmt = $conn->prepare($deleteSql);
+                    $deleteStmt->execute([':exam_year' => $deleteExamYear]);
+
+                    $deletedByTable[$tableName] = $tableRowCount;
+                    $deletedRows += $tableRowCount;
                 }
 
-                auditLog($conn, 'admin_delete_exam_year', 'exam_year', $deleteExamYear, [
-                    'deleted_rows' => $rowCount,
-                ], $adminId, (string) ($adminRow['username'] ?? ''), 'admin');
-                $_SESSION['admin_success'] = "ลบข้อมูล นสต.รุ่นที่ {$deleteExamYear} เรียบร้อย ({$rowCount} รายการ)";
-                header('Location: admin.php?view=delete_year');
-                exit;
+                if ($deletedRows <= 0) {
+                    $conn->rollBack();
+                    $formError = 'ไม่พบข้อมูลของปี นสต. ที่เลือก';
+                } else {
+                    $conn->commit();
+
+                    if (isset($_SESSION['exam_year']) && (string) $_SESSION['exam_year'] === $deleteExamYear) {
+                        unset($_SESSION['exam_year']);
+                    }
+
+                    auditLog($conn, 'admin_delete_exam_year', 'exam_year', $deleteExamYear, [
+                        'deleted_rows' => $deletedRows,
+                        'deleted_tables' => $deletedByTable,
+                    ], $adminId, (string) ($adminRow['username'] ?? ''), 'admin');
+                    $_SESSION['admin_success'] = "ลบข้อมูล นสต.รุ่นที่ {$deleteExamYear} เรียบร้อย ({$deletedRows} รายการ จาก " . count($deletedByTable) . " ตาราง)";
+                    header('Location: admin.php?view=delete_year');
+                    exit;
+                }
+            } catch (Throwable $e) {
+                if ($conn->inTransaction()) {
+                    $conn->rollBack();
+                }
+                $formError = 'ลบข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
             }
         }
     }
@@ -362,14 +497,7 @@ $pendingStmt = $conn->query("SELECT id, position, idnumber, firstname, lastname,
 $pendingUsers = $pendingStmt->fetchAll(PDO::FETCH_ASSOC);
 $totalPendingUsers = count($pendingUsers);
 
-$examYearStmt = $conn->query("
-    SELECT exam_year, COUNT(*) AS total_rows
-    FROM applicantname
-    WHERE exam_year IS NOT NULL AND TRIM(exam_year) <> '' AND id <> 'id'
-    GROUP BY exam_year
-    ORDER BY exam_year DESC
-");
-$examYears = $examYearStmt->fetchAll(PDO::FETCH_ASSOC);
+$examYears = $getExamYearUsageRows($conn);
 $totalExamYears = count($examYears);
 
 ensureAuditLogSchema($conn);
@@ -391,7 +519,7 @@ $auditFilterMap = [
     ],
     'import' => [
         'label' => 'Import',
-        'actions' => ['import_applicants'],
+        'actions' => ['import_applicants', 'import_selected_applicants'],
     ],
     'update' => [
         'label' => 'Update',

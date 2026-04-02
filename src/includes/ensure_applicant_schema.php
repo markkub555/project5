@@ -101,6 +101,9 @@ function ensureApplicantSchema(PDO $conn): array
         if (!$hasIndex('idx_applicant_exam_score_num')) {
             $conn->exec('CREATE INDEX idx_applicant_exam_score_num ON applicantname (exam_year, score_num, id_num)');
         }
+        if (!$hasIndex('idx_applicant_exam_idcode_allname')) {
+            $conn->exec('CREATE INDEX idx_applicant_exam_idcode_allname ON applicantname (exam_year, idcode, allname_calc)');
+        }
 
         $cache['has_id_num'] = $hasColumn('id_num');
         $cache['has_score_num'] = $hasColumn('score_num');
