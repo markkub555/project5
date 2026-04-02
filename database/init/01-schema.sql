@@ -20,12 +20,41 @@ CREATE TABLE IF NOT EXISTS `applicantname` (
   `allname` varchar(255) DEFAULT 'W',
   `militarydoc` char(1) DEFAULT 'W',
   `id_num` bigint(20) unsigned GENERATED ALWAYS AS (cast(`id` as unsigned)) STORED,
+  `score_num` decimal(10,2) GENERATED ALWAYS AS (cast(nullif(`score`, '') as decimal(10,2))) STORED,
+  `allname_calc` varchar(1) GENERATED ALWAYS AS (
+    case
+      when `submit_doc` = 'F'
+        or `lab_check` = 'F'
+        or `swim_test` = 'F'
+        or `run_test` = 'F'
+        or `station3_test` = 'F'
+        or `hospital_check` = 'F'
+        or `fingerprint_check` = 'F'
+        or `background_check` = 'F'
+        or `interview` = 'F'
+        or `militarydoc` = 'F' then 'F'
+      when `submit_doc` = 'P'
+        and `lab_check` = 'P'
+        and `swim_test` = 'P'
+        and `run_test` = 'P'
+        and `station3_test` = 'P'
+        and `hospital_check` = 'P'
+        and `fingerprint_check` = 'P'
+        and `background_check` = 'P'
+        and `interview` = 'P'
+        and `militarydoc` = 'P' then 'P'
+      else 'W'
+    end
+  ) STORED,
   KEY `idx_applicant_exam_idnum` (`exam_year`,`id_num`),
   KEY `idx_applicant_exam_idcode` (`exam_year`,`idcode`),
   KEY `idx_applicant_exam_firstname` (`exam_year`,`firstname`),
   KEY `idx_applicant_exam_lastname` (`exam_year`,`lastname`),
   KEY `idx_applicant_exam_allname` (`exam_year`,`allname`),
-  KEY `idx_applicant_exam_score` (`exam_year`,`score`)
+  KEY `idx_applicant_exam_allname_calc` (`exam_year`,`allname_calc`),
+  KEY `idx_applicant_exam_score` (`exam_year`,`score`),
+  KEY `idx_applicant_exam_score_num` (`exam_year`,`score_num`,`id_num`),
+  KEY `idx_applicant_exam_idcode_allname` (`exam_year`,`idcode`,`allname_calc`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS `applicant_notes` (
@@ -39,6 +68,23 @@ CREATE TABLE IF NOT EXISTS `applicant_notes` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_applicant_notes` (`exam_year`,`applicant_id`,`stage_key`),
   KEY `idx_applicant_notes_lookup` (`exam_year`,`stage_key`,`applicant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `selected_imports` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `exam_year` varchar(50) NOT NULL,
+  `row_no` int(11) NOT NULL,
+  `idcode` varchar(50) NOT NULL,
+  `prefix` varchar(100) DEFAULT NULL,
+  `firstname` varchar(255) DEFAULT NULL,
+  `lastname` varchar(255) DEFAULT NULL,
+  `score` decimal(10,2) DEFAULT NULL,
+  `remark` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_selected_imports_exam_idcode` (`exam_year`,`idcode`),
+  KEY `idx_selected_imports_exam_row` (`exam_year`,`row_no`),
+  KEY `idx_selected_imports_exam_score` (`exam_year`,`score`,`row_no`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS `users` (
@@ -60,3 +106,23 @@ CREATE TABLE IF NOT EXISTS `users` (
   KEY `idx_users_token` (`token`),
   KEY `idx_users_userstatus` (`userstatus`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
+
+CREATE TABLE IF NOT EXISTS `audit_logs` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) DEFAULT NULL,
+  `username` varchar(255) DEFAULT NULL,
+  `role` varchar(50) DEFAULT NULL,
+  `action` varchar(100) NOT NULL,
+  `target_type` varchar(100) DEFAULT NULL,
+  `target_id` varchar(255) DEFAULT NULL,
+  `details` text DEFAULT NULL,
+  `ip_address` varchar(64) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_audit_logs_created_at` (`created_at`),
+  KEY `idx_audit_logs_action` (`action`),
+  KEY `idx_audit_logs_user_id` (`user_id`),
+  KEY `idx_audit_logs_action_id` (`action`,`id`),
+  KEY `idx_audit_logs_username_id` (`username`,`id`),
+  KEY `idx_audit_logs_ip_created_at` (`ip_address`,`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

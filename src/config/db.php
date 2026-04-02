@@ -20,5 +20,7 @@ try {
         ]
     );
 } catch (PDOException $e) {
-    die('Connection failed: ' . $e->getMessage());
+    error_log('db_connect: ' . $e->getMessage());
+    http_response_code(500);
+    exit('เกิดข้อผิดพลาดในการเชื่อมต่อระบบ');
 }

@@ -22,4 +22,7 @@ RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]
 
 RewriteRule ^$ src/login.php [L]
+RewriteRule ^hospital\.php$ src/hospital_check.php [L,QSA]
+RewriteRule ^fingerprint\.php$ src/fingerprint_check.php [L,QSA]
+RewriteRule ^background\.php$ src/background_check.php [L,QSA]
 RewriteRule ^(.+\.php)$ src/$1 [L,QSA]
