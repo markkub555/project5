@@ -10,6 +10,7 @@ function renderStatusPage(array $config): void
     require_once __DIR__ . '/ensure_applicant_schema.php';
     require_once __DIR__ . '/applicant_notes.php';
     require_once __DIR__ . '/user_profile.php';
+    require_once __DIR__ . '/smart_search.php';
 
     if (!isset($_SESSION['user_login'])) {
         header('Location: login.php');
@@ -119,29 +120,18 @@ function renderStatusPage(array $config): void
         $listQueryParams[':status'] = $statusFilter;
     }
 
-    if ($search !== '') {
-        $searchNormalized = preg_replace('/\s+/u', ' ', $search) ?? $search;
-        $searchCompact = preg_replace('/\s+/u', '', $search) ?? $search;
-        $whereParts[] = "(
-            applicantname.idcode LIKE :search_idcode
-            OR applicantname.prefix LIKE :search_prefix
-            OR applicantname.firstname LIKE :search_firstname
-            OR applicantname.lastname LIKE :search_lastname
-            OR CONCAT_WS(' ', applicantname.prefix, applicantname.firstname, applicantname.lastname) LIKE :search_fullname
-            OR REPLACE(CONCAT_WS('', applicantname.prefix, applicantname.firstname, applicantname.lastname), ' ', '') LIKE :search_compact
-        )";
-        $queryParams[':search_idcode'] = '%' . $searchNormalized . '%';
-        $queryParams[':search_prefix'] = '%' . $searchNormalized . '%';
-        $queryParams[':search_firstname'] = '%' . $searchNormalized . '%';
-        $queryParams[':search_lastname'] = '%' . $searchNormalized . '%';
-        $queryParams[':search_fullname'] = '%' . $searchNormalized . '%';
-        $queryParams[':search_compact'] = '%' . $searchCompact . '%';
-        $listQueryParams[':search_idcode'] = '%' . $searchNormalized . '%';
-        $listQueryParams[':search_prefix'] = '%' . $searchNormalized . '%';
-        $listQueryParams[':search_firstname'] = '%' . $searchNormalized . '%';
-        $listQueryParams[':search_lastname'] = '%' . $searchNormalized . '%';
-        $listQueryParams[':search_fullname'] = '%' . $searchNormalized . '%';
-        $listQueryParams[':search_compact'] = '%' . $searchCompact . '%';
+    $smartSearch = applyApplicantSmartSearch(
+        $whereParts,
+        $queryParams,
+        $search,
+        $examYear,
+        $statusColumn,
+        null,
+        'applicantname'
+    );
+    $examYear = (string) $smartSearch['effective_exam_year'];
+    foreach ($queryParams as $key => $value) {
+        $listQueryParams[$key] = $value;
     }
 
     $listQueryParams[':note_stage_key'] = $noteStageKey;
@@ -311,7 +301,7 @@ function renderStatusPage(array $config): void
                         <input type="hidden" name="status" value="<?= $h($statusFilter) ?>">
                     <?php endif; ?>
                     <i class="bi bi-search"></i>
-                    <input type="text" name="search" value="<?= $h($search) ?>" placeholder="ค้นหาเลขสอบ / ชื่อ / นามสกุล">
+                    <input type="text" name="search" value="<?= $h($search) ?>" placeholder="ค้นหา">
                     <button type="submit" class="btn btn-sm btn-danger">ค้นหา</button>
                 </form>
 

@@ -4,6 +4,7 @@ secureSessionStart();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/user_profile.php';
 require_once __DIR__ . '/includes/ensure_applicant_schema.php';
+require_once __DIR__ . '/includes/smart_search.php';
 
 if (!isset($_SESSION['user_login'])) {
     header('Location: login.php');
@@ -50,6 +51,7 @@ $fields = [
     'interview',
     'militarydoc',
 ];
+$overallStatusExpr = buildOverallStatusExpr($fields);
 
 $buildStatusCondition = static function (array $targetFields, string $type): string {
     $allPass = implode(" = 'P' AND ", $targetFields) . " = 'P'";
@@ -70,6 +72,28 @@ $buildStatusCondition = static function (array $targetFields, string $type): str
     return '1=1';
 };
 
+$limit = 20;
+$page = max(1, (int) ($_GET['page'] ?? 1));
+$offset = ($page - 1) * $limit;
+
+$whereParts = ['exam_year = :exam_year'];
+$params = [':exam_year' => $examYear];
+
+if (in_array($statusFilter, ['P', 'F', 'W'], true)) {
+    $whereParts[] = $buildStatusCondition($fields, $statusFilter);
+}
+
+$smartSearch = applyApplicantSmartSearch(
+    $whereParts,
+    $params,
+    $search,
+    $examYear,
+    null,
+    $overallStatusExpr,
+    ''
+);
+$examYear = (string) $smartSearch['effective_exam_year'];
+
 $summarySql = "
     SELECT
         SUM(CASE WHEN " . $buildStatusCondition($fields, 'P') . " THEN 1 ELSE 0 END) AS total_pass,
@@ -87,36 +111,6 @@ $statusCount = [
     'F' => (int) ($summary['total_fail'] ?? 0),
     'W' => (int) ($summary['total_wait'] ?? 0),
 ];
-
-$limit = 20;
-$page = max(1, (int) ($_GET['page'] ?? 1));
-$offset = ($page - 1) * $limit;
-
-$whereParts = ['exam_year = :exam_year'];
-$params = [':exam_year' => $examYear];
-
-if (in_array($statusFilter, ['P', 'F', 'W'], true)) {
-    $whereParts[] = $buildStatusCondition($fields, $statusFilter);
-}
-
-if ($search !== '') {
-    $searchNormalized = preg_replace('/\s+/u', ' ', $search) ?? $search;
-    $searchCompact = preg_replace('/\s+/u', '', $search) ?? $search;
-    $whereParts[] = "(
-        idcode LIKE :search_idcode
-        OR prefix LIKE :search_prefix
-        OR firstname LIKE :search_firstname
-        OR lastname LIKE :search_lastname
-        OR CONCAT_WS(' ', prefix, firstname, lastname) LIKE :search_fullname
-        OR REPLACE(CONCAT_WS('', prefix, firstname, lastname), ' ', '') LIKE :search_compact
-    )";
-    $params[':search_idcode'] = '%' . $searchNormalized . '%';
-    $params[':search_prefix'] = '%' . $searchNormalized . '%';
-    $params[':search_firstname'] = '%' . $searchNormalized . '%';
-    $params[':search_lastname'] = '%' . $searchNormalized . '%';
-    $params[':search_fullname'] = '%' . $searchNormalized . '%';
-    $params[':search_compact'] = '%' . $searchCompact . '%';
-}
 
 $whereSql = implode(' AND ', $whereParts);
 
@@ -305,7 +299,7 @@ $columns = [
                         <input type="hidden" name="status" value="<?= $h($statusFilter) ?>">
                     <?php endif; ?>
                     <i class="bi bi-search"></i>
-                    <input type="text" name="search" value="<?= $h($search) ?>" placeholder="ค้นหาเลขสอบ / ชื่อ / นามสกุล">
+                    <input type="text" name="search" value="<?= $h($search) ?>" placeholder="ค้นหา">
                     <button type="submit" class="btn btn-sm btn-danger">ค้นหา</button>
                 </form>
             </div>

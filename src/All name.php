@@ -5,6 +5,7 @@ require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/user_profile.php';
 require_once __DIR__ . '/includes/ensure_applicant_schema.php';
 require_once __DIR__ . '/includes/applicant_notes.php';
+require_once __DIR__ . '/includes/smart_search.php';
 
 if (!isset($_SESSION['user_login'])) {
     header('Location: login.php');
@@ -47,7 +48,7 @@ if (mb_strlen($search) > 100) {
     $search = mb_substr($search, 0, 100);
 }
 
-$allnameExpr = applicantAllnameExpr($applicantSchema);
+$allnameExpr = applicantAllnameExpr($applicantSchema, 'applicantname');
 
 $whereParts = ["applicantname.id <> 'id'", 'applicantname.exam_year = :exam_year'];
 $queryParams = [':exam_year' => $examYear];
@@ -57,24 +58,16 @@ if ($statusFilter !== '') {
     $queryParams[':status'] = $statusFilter;
 }
 
-if ($search !== '') {
-    $searchNormalized = preg_replace('/\s+/u', ' ', $search) ?? $search;
-    $searchCompact = preg_replace('/\s+/u', '', $search) ?? $search;
-    $whereParts[] = "(
-        applicantname.idcode LIKE :search_idcode
-        OR applicantname.prefix LIKE :search_prefix
-        OR applicantname.firstname LIKE :search_firstname
-        OR applicantname.lastname LIKE :search_lastname
-        OR CONCAT_WS(' ', applicantname.prefix, applicantname.firstname, applicantname.lastname) LIKE :search_fullname
-        OR REPLACE(CONCAT_WS('', applicantname.prefix, applicantname.firstname, applicantname.lastname), ' ', '') LIKE :search_compact
-    )";
-    $queryParams[':search_idcode'] = '%' . $searchNormalized . '%';
-    $queryParams[':search_prefix'] = '%' . $searchNormalized . '%';
-    $queryParams[':search_firstname'] = '%' . $searchNormalized . '%';
-    $queryParams[':search_lastname'] = '%' . $searchNormalized . '%';
-    $queryParams[':search_fullname'] = '%' . $searchNormalized . '%';
-    $queryParams[':search_compact'] = '%' . $searchCompact . '%';
-}
+$smartSearch = applyApplicantSmartSearch(
+    $whereParts,
+    $queryParams,
+    $search,
+    $examYear,
+    null,
+    $allnameExpr,
+    'applicantname'
+);
+$examYear = (string) $smartSearch['effective_exam_year'];
 
 $whereSql = implode(' AND ', $whereParts);
 
@@ -295,7 +288,7 @@ if ($endPage - $startPage + 1 < $range) {
                         <input type="hidden" name="status" value="<?= h($statusFilter) ?>">
                     <?php endif; ?>
                     <i class="bi bi-search"></i>
-                    <input type="text" name="search" value="<?= h($search) ?>" placeholder="ค้นหาเลขสอบ / ชื่อ / นามสกุล">
+                    <input type="text" name="search" value="<?= h($search) ?>" placeholder="ค้นหา">
                     <button type="submit" class="btn btn-sm btn-danger">ค้นหา</button>
                 </form>
 

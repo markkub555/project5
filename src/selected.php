@@ -5,6 +5,7 @@ require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/user_profile.php';
 require_once __DIR__ . '/includes/ensure_applicant_schema.php';
 require_once __DIR__ . '/includes/selected_imports.php';
+require_once __DIR__ . '/includes/smart_search.php';
 
 if (!isset($_SESSION['user_login'])) {
     header('Location: login.php');
@@ -48,6 +49,11 @@ $examYear = (string) $_SESSION['exam_year'];
 $search = trim((string) ($_GET['search'] ?? ''));
 if (mb_strlen($search) > 100) {
     $search = mb_substr($search, 0, 100);
+}
+$parsedSearch = parseSmartSearch($search);
+if ($parsedSearch['exam_year'] !== null) {
+    $examYear = $parsedSearch['exam_year'];
+    $_SESSION['exam_year'] = $examYear;
 }
 
 if (!isset($_SESSION['csrf_token']) || $_SESSION['csrf_token'] === '') {
@@ -117,9 +123,9 @@ $params = [
     ':fail_exam_year' => $examYear,
 ];
 
-if ($search !== '') {
-    $searchNormalized = preg_replace('/\s+/u', ' ', $search) ?? $search;
-    $searchCompact = preg_replace('/\s+/u', '', $search) ?? $search;
+if ($parsedSearch['text'] !== '') {
+    $searchNormalized = preg_replace('/\s+/u', ' ', $parsedSearch['text']) ?? $parsedSearch['text'];
+    $searchCompact = preg_replace('/\s+/u', '', $parsedSearch['text']) ?? $parsedSearch['text'];
     $whereParts[] = "(
         si.idcode LIKE :search_idcode
         OR si.prefix LIKE :search_prefix
@@ -388,7 +394,7 @@ if ($endPage - $startPage + 1 < $range) {
                             <input type="hidden" name="selected_count" value="<?= (int) $selectedCount ?>">
                         <?php endif; ?>
                         <i class="bi bi-search"></i>
-                        <input type="text" name="search" value="<?= $h($search) ?>" placeholder="ค้นหาเลขสอบ / ชื่อ / นามสกุล">
+                        <input type="text" name="search" value="<?= $h($search) ?>" placeholder="ค้นหา">
                         <button type="submit" class="btn btn-sm btn-danger">ค้นหา</button>
                     </form>
                     <form method="GET" class="search-box">
