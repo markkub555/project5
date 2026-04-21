@@ -1014,10 +1014,12 @@ if ($view === 'pending') {
                     <?php if (($adminRow['username'] ?? '') !== ''): ?>
                         <p class="profile-username">@<?= $h((string) $adminRow['username']) ?></p>
                     <?php endif; ?>
-                    <a class="logout-btn" href="logout.php">
-                        <i class="bi bi-box-arrow-right"></i>
-                        Logout
-                    </a>
+                    <div class="profile-actions">
+                        <a class="profile-menu-item profile-menu-item-danger" href="logout.php" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:12px;border:1px solid #fecaca;background:linear-gradient(180deg,#fff7f7,#fff1f2);color:#b91c1c !important;text-decoration:none !important;font-size:.84rem;font-weight:700;line-height:1.2;box-shadow:0 6px 14px rgba(185,28,28,.08);">
+                            <i class="bi bi-box-arrow-right" style="color:#b91c1c !important;"></i>
+                            <span style="color:#b91c1c !important;">Logout</span>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

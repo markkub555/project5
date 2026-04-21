@@ -77,6 +77,19 @@ $chartLabels = [
     'เอกสารทางทหาร',
 ];
 
+$chartLinks = [
+    'document.php?' . http_build_query(['exam_year' => $examYear, 'status' => 'F']),
+    'lab_check.php?' . http_build_query(['exam_year' => $examYear, 'status' => 'F']),
+    'swim.php?' . http_build_query(['exam_year' => $examYear, 'status' => 'F']),
+    'run.php?' . http_build_query(['exam_year' => $examYear, 'status' => 'F']),
+    '3station.php?' . http_build_query(['exam_year' => $examYear, 'status' => 'F']),
+    'hospital_check.php?' . http_build_query(['exam_year' => $examYear, 'status' => 'F']),
+    'fingerprint_check.php?' . http_build_query(['exam_year' => $examYear, 'status' => 'F']),
+    'background_check.php?' . http_build_query(['exam_year' => $examYear, 'status' => 'F']),
+    'interview.php?' . http_build_query(['exam_year' => $examYear, 'status' => 'F']),
+    'militarydoc.php?' . http_build_query(['exam_year' => $examYear, 'status' => 'F']),
+];
+
 $chartFailData = [
     $chartData['doc_fail'],
     $chartData['lab_fail'],
@@ -553,7 +566,7 @@ usort($stageSummary, static function (array $a, array $b): int {
                         <div class="chart-wrap">
                             <canvas id="examChart"></canvas>
                         </div>
-                        <div class="chart-note">หมายเหตุ: แผนภูมิแสดงจำนวนผู้ไม่ผ่านแยกตามขั้นตอน ไม่ใช่ผลรวมทั้งกระบวนการ</div>
+                        <div class="chart-note">หมายเหตุ: แผนภูมิแสดงจำนวนผู้ไม่ผ่านแยกตามขั้นตอน ไม่ใช่ผลรวมทั้งกระบวนการ และสามารถคลิกแท่งกราฟเพื่อดูรายชื่อเฉพาะคนไม่ผ่านของด่านนั้นได้</div>
                     </div>
                     <div class="insight-card">
                         <p class="insight-title">ขั้นตอนที่มีผู้ไม่ผ่านสูงสุด</p>
@@ -597,8 +610,9 @@ usort($stageSummary, static function (array $a, array $b): int {
 
             const labels = <?= json_encode($chartLabels, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
             const failData = <?= json_encode($chartFailData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+            const chartLinks = <?= json_encode($chartLinks, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 
-            new Chart(canvas, {
+            const chart = new Chart(canvas, {
                 type: 'bar',
                 data: {
                     labels,
@@ -613,6 +627,24 @@ usort($stageSummary, static function (array $a, array $b): int {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    onClick: function(event, elements) {
+                        if (!elements.length) {
+                            return;
+                        }
+
+                        const index = elements[0].index ?? -1;
+                        if (index < 0 || !chartLinks[index]) {
+                            return;
+                        }
+
+                        window.location.href = chartLinks[index];
+                    },
+                    onHover: function(event, elements) {
+                        const target = event?.native?.target;
+                        if (target) {
+                            target.style.cursor = elements.length ? 'pointer' : 'default';
+                        }
+                    },
                     plugins: {
                         title: {
                             display: false,
