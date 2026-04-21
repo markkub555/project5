@@ -126,3 +126,23 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
   KEY `idx_audit_logs_username_id` (`username`,`id`),
   KEY `idx_audit_logs_ip_created_at` (`ip_address`,`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+INSERT INTO `users`
+  (`idnumber`, `position`, `firstname`, `lastname`, `number`, `password`, `username`, `email`, `token`, `expire`, `code`, `userstatus`)
+SELECT
+  '0000000000000',
+  'admin',
+  'ผู้ดูแล',
+  'ระบบ',
+  0,
+  '$2y$10$j4t5bWEiFUsLPx6pfmW2H.jCvSJhY8cNUlE8uEJg9sUAgMRuf2rxe',
+  'useradmin',
+  'useradmin@local.invalid',
+  NULL,
+  NULL,
+  NULL,
+  'P'
+FROM DUAL
+WHERE NOT EXISTS (
+  SELECT 1 FROM `users` WHERE `username` = 'useradmin'
+);

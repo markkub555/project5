@@ -28,6 +28,12 @@ if (isset($_POST['register'])) {
         exit();
     }
 
+    if (mb_strtolower($position) === 'admin') {
+        $_SESSION['error'] = "ไม่สามารถสมัครด้วยตำแหน่ง admin ได้";
+        header("location: index.php");
+        exit();
+    }
+
     // ตรวจสอบรหัสผ่านตรงกัน
     if ($password !== $c_password) {
         $_SESSION['error'] = "รหัสผ่านไม่ตรงกัน";

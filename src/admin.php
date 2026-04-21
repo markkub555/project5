@@ -22,6 +22,20 @@ $h = static function (string $value): string {
     return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 };
 
+$formatAuditTimestamp = static function ($value): string {
+    $rawValue = trim((string) $value);
+    if ($rawValue === '') {
+        return '-';
+    }
+
+    try {
+        $utcTime = new DateTimeImmutable($rawValue, new DateTimeZone('UTC'));
+        return $utcTime->setTimezone(new DateTimeZone('Asia/Bangkok'))->format('d/m/Y H:i:s');
+    } catch (Throwable $e) {
+        return $rawValue;
+    }
+};
+
 $formatAuditValue = static function ($value): string {
     if (is_array($value)) {
         return implode(', ', array_map('strval', $value));
@@ -327,6 +341,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (!filter_var($formData['email'], FILTER_VALIDATE_EMAIL)) {
             $formError = 'รูปแบบอีเมลไม่ถูกต้อง';
         } else {
+            $existingUserStmt = $conn->prepare('SELECT position FROM users WHERE id = :id LIMIT 1');
+            $existingUserStmt->execute([':id' => $formData['id']]);
+            $existingUser = $existingUserStmt->fetch(PDO::FETCH_ASSOC) ?: ['position' => ''];
+
             $checkStmt = $conn->prepare('SELECT id FROM users WHERE username = :username AND id <> :id LIMIT 1');
             $checkStmt->execute([
                 ':username' => $formData['username'],
@@ -343,6 +361,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $formError = 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว';
             } elseif ($emailCheckStmt->fetch(PDO::FETCH_ASSOC)) {
                 $formError = 'อีเมลนี้ถูกใช้งานแล้ว';
+            } elseif (mb_strtolower($formData['position']) === 'admin' && mb_strtolower((string) ($existingUser['position'] ?? '')) !== 'admin') {
+                $formError = 'ไม่สามารถเปลี่ยนผู้ใช้ทั่วไปให้เป็นตำแหน่ง admin ได้';
             } else {
                 $updateStmt = $conn->prepare(
                     'UPDATE users
@@ -1153,7 +1173,7 @@ if ($view === 'pending') {
                                 $translatedAudit = $translateAuditRow($auditRow);
                                 ?>
                                 <tr>
-                                    <td><?= $h((string) ($auditRow['created_at'] ?? '-')) ?></td>
+                                    <td><?= $h($formatAuditTimestamp($auditRow['created_at'] ?? '-')) ?></td>
                                     <td class="audit-meta"><?= $h($actorDisplay) ?></td>
                                     <td><span class="audit-action"><?= $h($translatedAudit['action_text']) ?></span></td>
                                     <td class="audit-meta"><?= $h($translatedAudit['target_text']) ?></td>

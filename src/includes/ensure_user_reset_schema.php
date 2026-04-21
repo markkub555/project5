@@ -70,6 +70,29 @@ function ensureUserResetSchema(PDO $conn): void
         }
 
         $conn->exec("UPDATE users SET userstatus = 'P' WHERE userstatus IS NULL OR TRIM(userstatus) = ''");
+
+        $adminExistsStmt = $conn->prepare('SELECT id FROM users WHERE username = :username LIMIT 1');
+        $adminExistsStmt->execute([':username' => 'useradmin']);
+        if (!$adminExistsStmt->fetch(PDO::FETCH_ASSOC)) {
+            $defaultAdminPassword = password_hash('password', PASSWORD_DEFAULT);
+            $insertAdminStmt = $conn->prepare(
+                'INSERT INTO users
+                    (idnumber, position, firstname, lastname, number, password, username, email, token, expire, code, userstatus)
+                 VALUES
+                    (:idnumber, :position, :firstname, :lastname, :number, :password, :username, :email, NULL, NULL, NULL, :userstatus)'
+            );
+            $insertAdminStmt->execute([
+                ':idnumber' => '0000000000000',
+                ':position' => 'admin',
+                ':firstname' => 'ผู้ดูแล',
+                ':lastname' => 'ระบบ',
+                ':number' => 0,
+                ':password' => $defaultAdminPassword,
+                ':username' => 'useradmin',
+                ':email' => 'useradmin@local.invalid',
+                ':userstatus' => 'P',
+            ]);
+        }
     } catch (Throwable $e) {
         return;
     }
