@@ -52,6 +52,19 @@ secureSessionStart();
         color: #ffffff;
     }
 
+    .password-toggle {
+        border-left: 0;
+        background: #fff;
+        color: #6b7280;
+    }
+
+    .password-toggle:hover,
+    .password-toggle:focus {
+        background: #fff;
+        color: #374151;
+        box-shadow: none !important;
+    }
+
     .login-shell {
         width: 100%;
         max-width: 420px;
@@ -120,8 +133,11 @@ secureSessionStart();
                     <label class="form-label">รหัสผ่าน</label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                        <input type="password" class="form-control" name="password" autocomplete="current-password"
+                        <input id="loginPassword" type="password" class="form-control" name="password" autocomplete="current-password"
                             required>
+                        <button class="btn password-toggle toggle-password" type="button" data-target="loginPassword" aria-label="แสดงหรือซ่อนรหัสผ่าน">
+                            <i class="bi bi-eye"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -147,6 +163,26 @@ secureSessionStart();
 
         </div>
     </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.toggle-password').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const targetId = button.getAttribute('data-target');
+                const input = document.getElementById(targetId);
+                if (!input) {
+                    return;
+                }
+
+                const isPassword = input.type === 'password';
+                input.type = isPassword ? 'text' : 'password';
+                button.innerHTML = isPassword
+                    ? '<i class="bi bi-eye-slash"></i>'
+                    : '<i class="bi bi-eye"></i>';
+            });
+        });
+    });
+    </script>
 
 </body>
 

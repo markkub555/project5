@@ -86,6 +86,7 @@ if ($page > $totalPages) {
 $listStmt = $conn->prepare("
     SELECT
         applicantname.id,
+        " . applicantOrderExpr($applicantSchema, 'applicantname') . " AS global_order_no,
         applicantname.idcode,
         applicantname.prefix,
         applicantname.firstname,
@@ -336,13 +337,13 @@ if ($endPage - $startPage + 1 < $range) {
                                         type="checkbox"
                                         class="row-check"
                                         data-id="<?= h((string) $row['id']) ?>"
-                                        data-order="<?= $offset + $index + 1 ?>"
+                                        data-order="<?= (int) ($row['global_order_no'] ?? ($offset + $index + 1)) ?>"
                                         data-idcode="<?= h((string) $row['idcode']) ?>"
                                         data-prefix="<?= h((string) $row['prefix']) ?>"
                                         data-firstname="<?= h((string) $row['firstname']) ?>"
                                         data-lastname="<?= h((string) $row['lastname']) ?>">
                                 </td>
-                                <td><?= $offset + $index + 1 ?></td>
+                                <td><?= (int) ($row['global_order_no'] ?? ($offset + $index + 1)) ?></td>
                                 <td><?= h((string) $row['idcode']) ?></td>
                                 <td><?= h((string) $row['prefix']) ?></td>
                                 <td><?= h((string) $row['firstname']) ?></td>
@@ -367,7 +368,7 @@ if ($endPage - $startPage + 1 < $range) {
                                         type="button"
                                         onclick="openPopup(this)"
                                         data-id="<?= h((string) $row['id']) ?>"
-                                        data-order="<?= $offset + $index + 1 ?>"
+                                        data-order="<?= (int) ($row['global_order_no'] ?? ($offset + $index + 1)) ?>"
                                         data-idcode="<?= h((string) $row['idcode']) ?>"
                                         data-prefix="<?= h((string) $row['prefix']) ?>"
                                         data-firstname="<?= h((string) $row['firstname']) ?>"

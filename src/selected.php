@@ -255,7 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') =
     echo '</tr></thead><tbody>';
 
     foreach ($exportRows as $index => $exportRow) {
-        $rank = $index + 1;
+        $rank = (int) ($exportRow['row_no'] ?? ($index + 1));
         $fullName = trim((string) ($exportRow['prefix'] ?? '') . (string) ($exportRow['firstname'] ?? '') . ' ' . (string) ($exportRow['lastname'] ?? ''));
         $reserveNumber = max(0, $rank - max(0, $selectedCount));
         $statusText = $selectedCount > 0 && $rank <= $selectedCount
@@ -442,7 +442,7 @@ if ($endPage - $startPage + 1 < $range) {
                                 </tr>
                             <?php endif; ?>
                             <?php foreach ($rows as $index => $row): ?>
-                                <?php $rank = $offset + $index + 1; ?>
+                                <?php $rank = (int) ($row['row_no'] ?? ($offset + $index + 1)); ?>
                                 <tr>
                                     <td><?= $rank ?></td>
                                     <td><?= $h((string) $row['idcode']) ?></td>

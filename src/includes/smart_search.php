@@ -20,7 +20,8 @@ function parseSmartSearch(string $rawSearch, ?string $defaultStageColumn = null)
     $status = null;
     $stageColumn = $defaultStageColumn;
 
-    if (preg_match('/(^|\s)(\d{1,4})(?=\s|$)/u', $working, $yearMatch) === 1) {
+    $searchLooksLikeSingleNumber = preg_match('/^\d{1,4}$/u', $working) === 1;
+    if (!$searchLooksLikeSingleNumber && preg_match('/(^|\s)(\d{1,4})(?=\s|$)/u', $working, $yearMatch) === 1) {
         $examYear = $yearMatch[2];
         $working = preg_replace('/(^|\s)' . preg_quote($yearMatch[2], '/') . '(?=\s|$)/u', ' ', $working, 1) ?? $working;
     }
@@ -90,7 +91,8 @@ function appendApplicantTextSearch(
     $searchCompact = preg_replace('/\s+/u', '', $searchText) ?? $searchText;
 
     $whereParts[] = "(
-        {$qualified}idcode LIKE :search_idcode
+        {$qualified}id LIKE :search_id
+        OR {$qualified}idcode LIKE :search_idcode
         OR {$qualified}prefix LIKE :search_prefix
         OR {$qualified}firstname LIKE :search_firstname
         OR {$qualified}lastname LIKE :search_lastname
@@ -98,6 +100,7 @@ function appendApplicantTextSearch(
         OR REPLACE(CONCAT_WS('', {$qualified}prefix, {$qualified}firstname, {$qualified}lastname), ' ', '') LIKE :search_compact
     )";
 
+    $queryParams[':search_id'] = '%' . $searchNormalized . '%';
     $queryParams[':search_idcode'] = '%' . $searchNormalized . '%';
     $queryParams[':search_prefix'] = '%' . $searchNormalized . '%';
     $queryParams[':search_firstname'] = '%' . $searchNormalized . '%';

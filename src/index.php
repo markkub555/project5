@@ -17,6 +17,7 @@ ensureUserResetSchema($conn);
 
     <link href="assets/vendor/bootstrap-5.0.2/bootstrap.min.css" rel="stylesheet">
     <link href="assets/css/local-fonts.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 
     <style>
     body {
@@ -90,6 +91,33 @@ ensureUserResetSchema($conn);
 
     .btn-custom:hover {
         background-color: #600000;
+    }
+
+    .password-field-wrap {
+        position: relative;
+    }
+
+    .password-field-wrap .form-control {
+        padding-right: 48px;
+    }
+
+    .password-toggle {
+        position: absolute;
+        top: 50%;
+        right: 12px;
+        transform: translateY(-50%);
+        border: 0;
+        background: transparent;
+        color: #6b7280;
+        padding: 0;
+        line-height: 1;
+        z-index: 3;
+    }
+
+    .password-toggle:hover,
+    .password-toggle:focus {
+        color: #374151;
+        outline: none;
     }
 
     @media (max-width: 768px) {
@@ -201,14 +229,24 @@ ensureUserResetSchema($conn);
 
                 <div class="col-md-6 mb-3">
                     <label class="form-label">รหัสผ่าน</label>
-                    <input type="password" class="form-control" name="password" minlength="6"
-                        autocomplete="new-password" required>
+                    <div class="password-field-wrap">
+                        <input id="registerPassword" type="password" class="form-control" name="password" minlength="6"
+                            autocomplete="new-password" required>
+                        <button class="password-toggle toggle-password" type="button" data-target="registerPassword" aria-label="แสดงหรือซ่อนรหัสผ่าน">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="col-md-6 mb-4">
                     <label class="form-label">ยืนยันรหัสผ่าน</label>
-                    <input type="password" class="form-control" name="c_password" minlength="6"
-                        autocomplete="new-password" required>
+                    <div class="password-field-wrap">
+                        <input id="registerConfirmPassword" type="password" class="form-control" name="c_password" minlength="6"
+                            autocomplete="new-password" required>
+                        <button class="password-toggle toggle-password" type="button" data-target="registerConfirmPassword" aria-label="แสดงหรือซ่อนรหัสผ่าน">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </div>
                 </div>
 
             </div>
@@ -229,6 +267,26 @@ ensureUserResetSchema($conn);
         </div>
 
     </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.toggle-password').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const targetId = button.getAttribute('data-target');
+                const input = document.getElementById(targetId);
+                if (!input) {
+                    return;
+                }
+
+                const isPassword = input.type === 'password';
+                input.type = isPassword ? 'text' : 'password';
+                button.innerHTML = isPassword
+                    ? '<i class="bi bi-eye-slash"></i>'
+                    : '<i class="bi bi-eye"></i>';
+            });
+        });
+    });
+    </script>
 
 </body>
 
